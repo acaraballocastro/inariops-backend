@@ -23,10 +23,13 @@ func JSON(w http.ResponseWriter, status int, data any) {
 }
 
 func Error(w http.ResponseWriter, status int, msg string) {
+	payload, err := json.Marshal(APIResponse{Error: msg})
+	if err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-
-	json.NewEncoder(w).Encode(APIResponse{
-		Error: msg,
-	})
+	_, _ = w.Write(payload)
 }
