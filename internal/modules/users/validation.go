@@ -27,11 +27,10 @@ func (s *Service) validateCreateUser(name, email, role string) error {
 	return nil
 }
 
+var emailRE = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
 func isValidEmail(email string) bool {
-	// Simple regex for email validation
-	const emailRegex = `^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`
-	re := regexp.MustCompile(emailRegex)
-	return re.MatchString(email)
+	return emailRE.MatchString(email)
 }
 
 func (s *Service) validateUpdateUser(input UpdateUserInput) error {
