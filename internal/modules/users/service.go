@@ -1,6 +1,7 @@
 package users
 
 import (
+	"inariops/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,54 +16,54 @@ type UpdateUserInput struct {
 	Name  *string
 	Email *string
 	Phone *string
-	Role  *UserRole
+	Role  *domain.UserRole
 }
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) GetAllUsers() ([]User, error) {
+func (s *Service) GetAllUsers() ([]domain.User, error) {
 	return s.repo.GetAllUsers()
 }
 
-func (s *Service) CreateUser(name, email, phone string, role string) (User, error) {
-	user := User{
+func (s *Service) CreateUser(name, email, phone string, role string) (domain.User, error) {
+	user := domain.User{
 		ID:        uuid.New().String(),
 		Name:      name,
 		Email:     email,
 		Phone:     phone,
-		Role:      UserRole(role),
+		Role:      domain.UserRole(role),
 		IsActive:  true,
 		CreatedAt: time.Now(),
 	}
 
 	validateCreateUserErr := s.validateCreateUser(name, email, role)
 	if validateCreateUserErr != nil {
-		return User{}, validateCreateUserErr
+		return domain.User{}, validateCreateUserErr
 	}
 
 	err := s.repo.CreateUser(user)
 	if err != nil {
-		return User{}, err
+		return domain.User{}, err
 	}
 
 	return user, nil
 }
 
-func (s *Service) GetUserByID(id string) (*User, error) {
+func (s *Service) GetUserByID(id string) (*domain.User, error) {
 	return s.repo.GetUserByID(id)
 }
 
-func (s *Service) UpdateUser(input UpdateUserInput) (User, error) {
+func (s *Service) UpdateUser(input UpdateUserInput) (domain.User, error) {
 	validateUpdateUserErr := s.validateUpdateUser(input)
 	if validateUpdateUserErr != nil {
-		return User{}, validateUpdateUserErr
+		return domain.User{}, validateUpdateUserErr
 	}
 
 	user, err := s.repo.GetUserByID(input.ID)
 	if err != nil {
-		return User{}, err
+		return domain.User{}, err
 	}
 
 	if input.Name != nil {
@@ -83,7 +84,7 @@ func (s *Service) UpdateUser(input UpdateUserInput) (User, error) {
 
 	err = s.repo.UpdateUser(*user)
 	if err != nil {
-		return User{}, err
+		return domain.User{}, err
 	}
 
 	return *user, nil
