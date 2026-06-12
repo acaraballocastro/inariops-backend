@@ -8,18 +8,19 @@ import (
 // VALIDATION
 func (s *Service) validateCreateUser(name, email, role string) error {
 	if name == "" {
-		return errors.ErrNullableFieldEmpty
+		return errors.ErrInvalidInput
 	}
 
 	if email == "" {
-		return errors.ErrNullableFieldEmpty
+		return errors.ErrInvalidInput
 	}
 
 	if !isValidEmail(email) {
 		return errors.ErrInvalidInput
 	}
 
-	if role != "ADMIN" && role != "GUIDE" {
+	r := UserRole(role)
+	if r != RoleAdmin && r != RoleGuide {
 		return errors.ErrInvalidRole
 	}
 
