@@ -2,6 +2,8 @@ package users
 
 import (
 	"encoding/json"
+	"inariops/internal/shared/logger"
+	"inariops/internal/shared/response"
 	"net/http"
 )
 
@@ -60,57 +62,62 @@ func (h *Handler) getAllUsers(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) getUserByID(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+
 	user, err := h.service.GetUserByID(id)
 	if err != nil {
-		http.Error(w, "user not found", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "user not found")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	response.JSON(w, http.StatusOK, user)
 }
 
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
+	logger.Info("create user request")
+
 	var input CreateUserRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		logger.Error("invalid body")
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	createdUser, err := h.service.CreateUser(input.Name, input.Email, input.Phone, input.Role)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Error("create user failed: %v", err)
+		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(createdUser)
+	// err = authService.CreateCredentials(createdUser.ID, createdUser.Email)
+
+	response.JSON(w, http.StatusCreated, createdUser)
 }
 
 func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	var input UpdateUserInput
+
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	updatedUser, err := h.service.UpdateUser(input)
-
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedUser)
+	response.JSON(w, http.StatusOK, updatedUser)
 }
 
 func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+
 	err := h.service.DeleteUser(id)
 	if err != nil {
-		http.Error(w, "failed to delete user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete user")
 		return
 	}
 

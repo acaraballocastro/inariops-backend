@@ -2,19 +2,22 @@ package api
 
 import (
 	"database/sql"
-	"net/http"
 
 	"inariops/internal/modules/users"
+
+	"github.com/gorilla/mux"
 )
 
-func NewRouter(db *sql.DB) http.Handler {
-	mux := http.NewServeMux()
+func NewRouter(db *sql.DB) *mux.Router {
+	router := mux.NewRouter()
 
 	userRepo := users.NewRepository(db)
+
 	userService := users.NewService(userRepo)
+
 	userHandler := users.NewHandler(userService)
 
-	mux.HandleFunc("/users", userHandler.HandleUsers)
+	router.HandleFunc("/users", userHandler.HandleUsers)
 
-	return mux
+	return router
 }

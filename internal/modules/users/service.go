@@ -37,6 +37,11 @@ func (s *Service) CreateUser(name, email, phone string, role string) (User, erro
 		CreatedAt: time.Now(),
 	}
 
+	validateCreateUserErr := s.validateCreateUser(name, email, role)
+	if validateCreateUserErr != nil {
+		return User{}, validateCreateUserErr
+	}
+
 	err := s.repo.CreateUser(user)
 	if err != nil {
 		return User{}, err
@@ -50,6 +55,10 @@ func (s *Service) GetUserByID(id string) (*User, error) {
 }
 
 func (s *Service) UpdateUser(input UpdateUserInput) (User, error) {
+	validateUpdateUserErr := s.validateUpdateUser(input)
+	if validateUpdateUserErr != nil {
+		return User{}, validateUpdateUserErr
+	}
 
 	user, err := s.repo.GetUserByID(input.ID)
 	if err != nil {
