@@ -48,6 +48,18 @@ func (r *Repository) GetUserByID(id string) (*User, error) {
 	return &user, nil
 }
 
+func (r *Repository) GetUserByEmail(email string) (*User, error) {
+	var u User
+
+	err := r.db.QueryRow(`
+		SELECT id, email, role, is_active
+		FROM users
+		WHERE email = $1
+	`, email).Scan(&u.ID, &u.Email, &u.Role, &u.IsActive)
+
+	return &u, err
+}
+
 func (r *Repository) UpdateUser(user User) error {
 	_, err := r.db.Exec("UPDATE users SET name = $1, email = $2, phone = $3, role = $4, is_active = $5 WHERE id = $6",
 		user.Name, user.Email, user.Phone, user.Role, user.IsActive, user.ID)

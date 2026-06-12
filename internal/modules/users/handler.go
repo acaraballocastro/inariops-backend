@@ -90,6 +90,8 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// err = authService.CreateCredentials(createdUser.ID, createdUser.Email)
+
 	response.JSON(w, http.StatusCreated, createdUser)
 }
 
