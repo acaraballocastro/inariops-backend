@@ -34,9 +34,17 @@ func isValidEmail(email string) bool {
 }
 
 func (s *Service) validateUpdateUser(input UpdateUserInput) error {
+	if input.ID == "" {
+		return errors.ErrInvalidInput
+	}
 
-	if input.Email != nil && *input.Email == "" {
-		return errors.ErrNullableFieldEmpty
+	if input.Email != nil {
+		if *input.Email == "" {
+			return errors.ErrNullableFieldEmpty
+		}
+		if !isValidEmail(*input.Email) {
+			return errors.ErrInvalidInput
+		}
 	}
 
 	if input.Name != nil && *input.Name == "" {
@@ -45,7 +53,7 @@ func (s *Service) validateUpdateUser(input UpdateUserInput) error {
 
 	if input.Role != nil {
 		r := *input.Role
-		if r != "ADMIN" && r != "GUIDE" {
+		if r != RoleAdmin && r != RoleGuide {
 			return errors.ErrInvalidRole
 		}
 	}
