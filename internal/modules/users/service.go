@@ -2,6 +2,7 @@ package users
 
 import (
 	"inariops/internal/domain"
+	"inariops/internal/modules/auth"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +10,7 @@ import (
 
 type Service struct {
 	repo *Repository
+	auth *auth.Service
 }
 
 type UpdateUserInput struct {
@@ -19,15 +21,15 @@ type UpdateUserInput struct {
 	Role  *domain.UserRole
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, auth *auth.Service) *Service {
+	return &Service{repo: repo, auth: auth}
 }
 
 func (s *Service) GetAllUsers() ([]domain.User, error) {
 	return s.repo.GetAllUsers()
 }
 
-func (s *Service) CreateUser(name, email, phone string, role string) (domain.User, error) {
+func (s *Service) CreateUser(name, email, phone string, role string) (domain.UserCredentials, error) {
 	user := domain.User{
 		ID:        uuid.New().String(),
 		Name:      name,
@@ -40,15 +42,23 @@ func (s *Service) CreateUser(name, email, phone string, role string) (domain.Use
 
 	validateCreateUserErr := s.validateCreateUser(name, email, role)
 	if validateCreateUserErr != nil {
-		return domain.User{}, validateCreateUserErr
+		return domain.UserCredentials{}, validateCreateUserErr
 	}
 
 	err := s.repo.CreateUser(user)
 	if err != nil {
-		return domain.User{}, err
+		return domain.UserCredentials{}, err
 	}
 
-	return user, nil
+	authCredentials, err := s.auth.CreateCredentials(user.ID)
+	if err != nil {
+		return domain.UserCredentials{}, err
+	}
+
+	return domain.UserCredentials{
+		User:            user,
+		AuthCredentials: authCredentials,
+	}, nil
 }
 
 func (s *Service) GetUserByID(id string) (*domain.User, error) {

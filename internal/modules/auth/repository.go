@@ -30,16 +30,24 @@ func (r *Repository) GetCredentials(userID string) (domain.AuthCredentials, erro
 
 	err := r.db.QueryRow(`
 		SELECT user_id, password_hash, must_change_password, is_active
-		FROM auth_credentials
+		FROM user_credentials
 		WHERE user_id = $1
 	`, userID).Scan(&c.UserID, &c.PasswordHash, &c.MustChangePassword, &c.IsActive)
 
 	return c, err
 }
 
+func (r *Repository) CreateCredentials(credentials Credentials) error {
+	_, err := r.db.Exec(`
+		INSERT INTO user_credentials (id, user_id, password_hash, must_change_password, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, credentials.ID, credentials.UserID, credentials.PasswordHash, credentials.MustChangePassword, credentials.IsActive, credentials.CreatedAt, credentials.UpdatedAt)
+	return err
+}
+
 func (r *Repository) UpdatePassword(userID, hash string) error {
 	_, err := r.db.Exec(`
-		UPDATE auth_credentials
+		UPDATE user_credentials
 		SET password_hash = $1,
 		    must_change_password = false,
 		    updated_at = NOW()
