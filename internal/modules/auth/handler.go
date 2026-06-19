@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 )
 
@@ -52,9 +51,6 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-
-	log.Printf("ChangePassword: received request for user %s", req.UserID)
-	log.Printf("ChangePassword: old password: %s, new password: %s", req.OldPassword, req.NewPassword)
 
 	err := h.service.ChangePassword(req.UserID, req.OldPassword, req.NewPassword)
 	if err != nil {
