@@ -107,7 +107,6 @@ func (s *Service) CreateCredentials(userID string) (domain.AuthCredentials, erro
 
 	return domain.AuthCredentials{
 		UserID:             credentials.UserID,
-		PasswordHash:       credentials.PasswordHash,
 		MustChangePassword: credentials.MustChangePassword,
 		IsActive:           credentials.IsActive,
 	}, s.repo.CreateCredentials(credentials)
