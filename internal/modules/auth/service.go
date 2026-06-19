@@ -23,9 +23,15 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 	if err != nil {
 		return LoginResponse{}, errors.ErrUserNotFound
 	}
+	if !user.IsActive {
+		return LoginResponse{}, errors.ErrUnauthorized
+	}
 
 	cred, err := s.repo.GetCredentials(user.ID)
 	if err != nil {
+		return LoginResponse{}, errors.ErrUnauthorized
+	}
+	if !cred.IsActive {
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
