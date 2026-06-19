@@ -1,4 +1,4 @@
-package users
+package domain
 
 import "time"
 
@@ -17,4 +17,9 @@ type User struct {
 	Role      UserRole  `json:"role"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type UserCredentials struct {
+	User            User
+	AuthCredentials AuthCredentials
 }

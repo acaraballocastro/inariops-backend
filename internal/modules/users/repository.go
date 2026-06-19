@@ -1,6 +1,9 @@
 package users
 
-import "database/sql"
+import (
+	"database/sql"
+	"inariops/internal/domain"
+)
 
 type Repository struct {
 	db *sql.DB
@@ -10,16 +13,16 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) GetAllUsers() ([]User, error) {
+func (r *Repository) GetAllUsers() ([]domain.User, error) {
 	rows, err := r.db.Query("SELECT id, name, email, phone, role, is_active, created_at FROM users")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []domain.User
 	for rows.Next() {
-		var user User
+		var user domain.User
 		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Role, &user.IsActive, &user.CreatedAt)
 		if err != nil {
 			return nil, err
@@ -30,16 +33,16 @@ func (r *Repository) GetAllUsers() ([]User, error) {
 	return users, nil
 }
 
-func (r *Repository) CreateUser(user User) error {
+func (r *Repository) CreateUser(user domain.User) error {
 	_, err := r.db.Exec("INSERT INTO users (id, name, email, phone, role, is_active, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		user.ID, user.Name, user.Email, user.Phone, user.Role, user.IsActive, user.CreatedAt)
 	return err
 }
 
-func (r *Repository) GetUserByID(id string) (*User, error) {
+func (r *Repository) GetUserByID(id string) (*domain.User, error) {
 	row := r.db.QueryRow("SELECT id, name, email, phone, role, is_active, created_at FROM users WHERE id = $1", id)
 
-	var user User
+	var user domain.User
 	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Role, &user.IsActive, &user.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -48,7 +51,19 @@ func (r *Repository) GetUserByID(id string) (*User, error) {
 	return &user, nil
 }
 
-func (r *Repository) UpdateUser(user User) error {
+func (r *Repository) GetUserByEmail(email string) (*domain.User, error) {
+	var u domain.User
+
+	err := r.db.QueryRow(`
+		SELECT id, email, role, is_active
+		FROM users
+		WHERE email = $1
+	`, email).Scan(&u.ID, &u.Email, &u.Role, &u.IsActive)
+
+	return &u, err
+}
+
+func (r *Repository) UpdateUser(user domain.User) error {
 	_, err := r.db.Exec("UPDATE users SET name = $1, email = $2, phone = $3, role = $4, is_active = $5 WHERE id = $6",
 		user.Name, user.Email, user.Phone, user.Role, user.IsActive, user.ID)
 	return err

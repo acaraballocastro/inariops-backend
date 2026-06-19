@@ -6,12 +6,16 @@ import (
 
 	"inariops/internal/api"
 	"inariops/internal/db"
+	"inariops/internal/shared/logger"
+	"inariops/internal/shared/middleware"
 )
 
 func main() {
 	dbConn := db.Connect()
 
 	router := api.NewRouter(dbConn)
+	router.Use(logger.Logging)  // Middleware para logging
+	router.Use(middleware.CORS) // Middleware para CORS
 
 	log.Println("InariOps running on :9142")
 
