@@ -23,9 +23,15 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 	if err != nil {
 		return LoginResponse{}, errors.ErrUserNotFound
 	}
+	if !user.IsActive {
+		return LoginResponse{}, errors.ErrUnauthorized
+	}
 
 	cred, err := s.repo.GetCredentials(user.ID)
 	if err != nil {
+		return LoginResponse{}, errors.ErrUnauthorized
+	}
+	if !cred.IsActive {
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
@@ -96,7 +102,6 @@ func (s *Service) CreateCredentials(userID string) (domain.AuthCredentials, erro
 
 	return domain.AuthCredentials{
 		UserID:             credentials.UserID,
-		PasswordHash:       credentials.PasswordHash,
 		MustChangePassword: credentials.MustChangePassword,
 		IsActive:           credentials.IsActive,
 	}, s.repo.CreateCredentials(credentials)
