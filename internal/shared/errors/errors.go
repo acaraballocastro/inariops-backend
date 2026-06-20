@@ -42,6 +42,17 @@ var (
 		Code:    "INVALID_ROLE",
 		Message: "invalid role",
 	}
+
+	// reservations
+	ErrReservationNotFound = AppError{
+		Code:    "RESERVATION_NOT_FOUND",
+		Message: "reservation not found",
+	}
+
+	ErrInvalidReservationCode = AppError{
+		Code:    "INVALID_RESERVATION_CODE",
+		Message: "invalid reservation code",
+	}
 )
 
 type AppError struct {

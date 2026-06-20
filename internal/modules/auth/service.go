@@ -54,8 +54,6 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 
 func (s *Service) ChangePassword(userID, oldPass, newPass string) error {
 
-	log.Printf("ChangePassword: starting for user %s", userID)
-
 	cred, err := s.repo.GetCredentials(userID)
 	if err != nil {
 		log.Printf("ChangePassword: failed to get credentials for user %s: %v", userID, err)
@@ -78,7 +76,6 @@ func (s *Service) ChangePassword(userID, oldPass, newPass string) error {
 		return err
 	}
 
-	log.Printf("ChangePassword: success for user %s", userID)
 	return nil
 }
 
@@ -87,8 +84,6 @@ func (s *Service) CreateCredentials(userID string) (domain.AuthCredentials, erro
 	if err != nil {
 		return domain.AuthCredentials{}, err
 	}
-
-	log.Printf("Default password for user %s: %s", userID, password)
 
 	passwordHash, err := HashPassword(password)
 	if err != nil {
