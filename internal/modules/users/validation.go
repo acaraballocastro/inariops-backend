@@ -1,6 +1,7 @@
 package users
 
 import (
+	"inariops/internal/domain"
 	"inariops/internal/shared/errors"
 	"regexp"
 )
@@ -19,8 +20,8 @@ func (s *Service) validateCreateUser(name, email, role string) error {
 		return errors.ErrInvalidInput
 	}
 
-	r := UserRole(role)
-	if r != RoleAdmin && r != RoleGuide {
+	r := domain.UserRole(role)
+	if r != domain.RoleAdmin && r != domain.RoleGuide {
 		return errors.ErrInvalidRole
 	}
 
@@ -53,7 +54,7 @@ func (s *Service) validateUpdateUser(input UpdateUserInput) error {
 
 	if input.Role != nil {
 		r := *input.Role
-		if r != RoleAdmin && r != RoleGuide {
+		if r != domain.RoleAdmin && r != domain.RoleGuide {
 			return errors.ErrInvalidRole
 		}
 	}
