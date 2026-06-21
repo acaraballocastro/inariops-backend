@@ -22,3 +22,22 @@ type Reservation struct {
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
 }
+
+type CreateReservationRequest struct {
+	Title            *string    `json:"title"`
+	Description      *string    `json:"description"`
+	AgencyID         *string    `json:"agency_id"`
+	TotalPeopleCount *int       `json:"total_people_count"`
+	StartDate        *time.Time `json:"start_date"`
+	EndDate          *time.Time `json:"end_date"`
+}
+
+type UpdateReservationRequest struct {
+	Code             string
+	Title            *string
+	Description      *string
+	AgencyID         *string
+	TotalPeopleCount *int
+	StartDate        *time.Time
+	EndDate          *time.Time
+}

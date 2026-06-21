@@ -25,6 +25,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	var req LoginRequest
 
@@ -44,6 +45,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	var req ChangePasswordRequest
 

@@ -55,10 +55,10 @@ func (r *Repository) GetUserByEmail(email string) (*domain.User, error) {
 	var u domain.User
 
 	err := r.db.QueryRow(`
-		SELECT id, email, role, is_active
+		SELECT id, name, email, phone, role, is_active, created_at 
 		FROM users
 		WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.Role, &u.IsActive)
+	`, email).Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.Role, &u.IsActive, &u.CreatedAt)
 
 	return &u, err
 }
@@ -66,6 +66,11 @@ func (r *Repository) GetUserByEmail(email string) (*domain.User, error) {
 func (r *Repository) UpdateUser(user domain.User) error {
 	_, err := r.db.Exec("UPDATE users SET name = $1, email = $2, phone = $3, role = $4, is_active = $5 WHERE id = $6",
 		user.Name, user.Email, user.Phone, user.Role, user.IsActive, user.ID)
+	return err
+}
+
+func (r *Repository) DeactivateUser(id string) error {
+	_, err := r.db.Exec("UPDATE users SET is_active = false WHERE id = $1", id)
 	return err
 }
 
