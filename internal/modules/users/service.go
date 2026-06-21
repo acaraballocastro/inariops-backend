@@ -3,14 +3,16 @@ package users
 import (
 	"inariops/internal/domain"
 	"inariops/internal/modules/auth"
+	"inariops/internal/modules/guides"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *Repository
-	auth *auth.Service
+	repo   *Repository
+	auth   *auth.Service
+	guides *guides.Service
 }
 
 type UpdateUserInput struct {
@@ -21,8 +23,8 @@ type UpdateUserInput struct {
 	Role  *domain.UserRole
 }
 
-func NewService(repo *Repository, auth *auth.Service) *Service {
-	return &Service{repo: repo, auth: auth}
+func NewService(repo *Repository, auth *auth.Service, guides *guides.Service) *Service {
+	return &Service{repo: repo, auth: auth, guides: guides}
 }
 
 func (s *Service) GetAllUsers() ([]domain.User, error) {
@@ -51,6 +53,19 @@ func (s *Service) CreateUser(name, email, phone string, role string) (domain.Use
 	}
 
 	authCredentials, err := s.auth.CreateCredentials(user.ID)
+	if err != nil {
+		_ = s.repo.DeleteUser(user.ID)
+		return domain.UserCredentials{}, err
+	}
+
+	guide := domain.Guide{
+		ID:             uuid.New().String(),
+		UserID:         user.ID,
+		MaxToursPerDay: 1, // Set a default value
+		CreatedAt:      time.Now(),
+	}
+
+	err = s.guides.CreateGuide(guide)
 	if err != nil {
 		_ = s.repo.DeleteUser(user.ID)
 		return domain.UserCredentials{}, err
