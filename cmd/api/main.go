@@ -14,8 +14,9 @@ func main() {
 	dbConn := db.Connect()
 
 	router := api.NewRouter(dbConn)
-	router.Use(logger.Logging)  // Middleware para logging
 	router.Use(middleware.CORS) // Middleware para CORS
+	router.Use(logger.Logging)  // Middleware para logging
+	log.Println("Starting server on :9142")
 
 	log.Println("InariOps running on :9142")
 
