@@ -50,11 +50,11 @@ func (s *Service) CreateUser(name, email, phone string, role string) (domain.Use
 		return domain.UserCredentials{}, err
 	}
 
-authCredentials, err := s.auth.CreateCredentials(user.ID)
-if err != nil {
-	_ = s.repo.DeleteUser(user.ID)
-	return domain.UserCredentials{}, err
-}
+	authCredentials, err := s.auth.CreateCredentials(user.ID)
+	if err != nil {
+		_ = s.repo.DeleteUser(user.ID)
+		return domain.UserCredentials{}, err
+	}
 
 	return domain.UserCredentials{
 		User:            user,
@@ -99,6 +99,10 @@ func (s *Service) UpdateUser(input UpdateUserInput) (domain.User, error) {
 	}
 
 	return *user, nil
+}
+
+func (s *Service) DeactivateUser(id string) error {
+	return s.repo.DeactivateUser(id)
 }
 
 func (s *Service) DeleteUser(id string) error {

@@ -53,6 +53,11 @@ var (
 		Code:    "INVALID_RESERVATION_CODE",
 		Message: "invalid reservation code",
 	}
+
+	ErrWeakPassword = AppError{
+		Code:    "WEAK_PASSWORD",
+		Message: "password does not meet security requirements, must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+	}
 )
 
 type AppError struct {
