@@ -49,6 +49,17 @@ func (h *Handler) HandleUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetAllGuides(w http.ResponseWriter, r *http.Request) {
+	guides, err := h.service.GetAllGuides()
+	if err != nil {
+		http.Error(w, "failed to fetch guides", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(guides)
+}
+
 func (h *Handler) getAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.service.GetAllUsers()

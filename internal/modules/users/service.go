@@ -31,6 +31,35 @@ func (s *Service) GetAllUsers() ([]domain.User, error) {
 	return s.repo.GetAllUsers()
 }
 
+func (s *Service) GetAllGuides() ([]domain.GuideUser, error) {
+	guides, err := s.guides.GetAllGuides()
+	if err != nil {
+		return nil, err
+	}
+
+	var guideUsers []domain.GuideUser
+	for _, guide := range guides {
+		user, err := s.repo.GetUserByID(guide.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		guideUser := domain.GuideUser{
+			ID:             guide.ID,
+			UserID:         guide.UserID,
+			Name:           user.Name,
+			Email:          user.Email,
+			Phone:          user.Phone,
+			MaxToursPerDay: guide.MaxToursPerDay,
+			CreatedAt:      guide.CreatedAt,
+		}
+		guideUsers = append(guideUsers, guideUser)
+	}
+
+	return guideUsers, nil
+
+}
+
 func (s *Service) CreateUser(name, email, phone string, role string) (domain.UserCredentials, error) {
 	user := domain.User{
 		ID:        uuid.New().String(),
