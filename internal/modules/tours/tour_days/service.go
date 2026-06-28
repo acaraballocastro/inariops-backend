@@ -67,7 +67,13 @@ func (s *Service) CreateTourDay(tourDayInput CreateTourDayInput) error {
 		return errors.ErrInvalidInput
 	}
 
-	return s.repo.CreateTourDay(tourDay)
+	err := s.repo.CreateTourDay(tourDay)
+	if err != nil {
+		logger.Error("CreateTourDay: failed to create tour day for reservation ID %s: %v", tourDay.ReservationID, err)
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) UpdateTourDay(tourDayInput UpdateTourDayInput) error {

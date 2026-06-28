@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"inariops/internal/modules/auth"
+	"inariops/internal/modules/guides"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
 	"inariops/internal/modules/users"
@@ -22,13 +23,15 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	// Repositories
 	authRepo := auth.NewRepository(db)
+	guidesRepo := guides.NewRepository(db)
 	userRepo := users.NewRepository(db)
 	reservationRepo := reservations.NewRepository(db)
 	tourDayRepo := tourdays.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
-	userService := users.NewService(userRepo, authService)
+	guidesService := guides.NewService(guidesRepo)
+	userService := users.NewService(userRepo, authService, guidesService)
 	reservationService := reservations.NewService(reservationRepo, tourDayRepo)
 	tourDayService := tourdays.NewService(tourDayRepo)
 
@@ -97,6 +100,12 @@ func NewRouter(db *sql.DB) *mux.Router {
 		"/tour-days/by-reservation/{reservation_id}",
 		tourDayHandler.GetTourDaysByReservationID,
 	).Methods(http.MethodGet)
+
+	// =====================
+	// GUIDES
+	// =====================
+	apiV1.HandleFunc("/guides", userHandler.GetAllGuides).
+		Methods(http.MethodGet)
 
 	// Error handlers
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
