@@ -51,6 +51,8 @@ func (s *Service) CreateReservation(reservation Reservation) error {
 	reservation.CreatedAt = time.Now()
 	reservation.UpdatedAt = time.Now()
 
+	logger.Info("CreateReservation: creating reservation with ID %v", reservation)
+
 	err := s.repo.CreateReservation(reservation)
 	if err != nil {
 		logger.Error("CreateReservation: failed to create reservation: %v", err)
@@ -81,17 +83,46 @@ func (s *Service) CreateReservation(reservation Reservation) error {
 	return nil
 }
 
-func (s *Service) UpdateReservation(reservation Reservation) error {
-	if reservation.Code == nil || *reservation.Code == "" {
+func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error {
+	if reservation.Code == "" {
 		logger.Error("UpdateReservation: invalid input - code is required")
 		return errors.ErrInvalidReservationCode
 	}
 
-	err := s.repo.UpdateReservation(reservation)
+	oldReservation, err := s.repo.GetReservationByCode(reservation.Code)
+	if err != nil {
+		logger.Error("UpdateReservation: failed to retrieve reservation with code %s: %v", reservation.Code, err)
+		return errors.ErrReservationNotFound
+	}
+
+	// Update the fields of the old reservation with the new values
+	if reservation.Title != nil {
+		oldReservation.Title = reservation.Title
+	}
+	if reservation.Description != nil {
+		oldReservation.Description = reservation.Description
+	}
+	if reservation.QuoteNumber != nil {
+		oldReservation.QuoteNumber = reservation.QuoteNumber
+	}
+	if reservation.FileNumber != nil {
+		oldReservation.FileNumber = reservation.FileNumber
+	}
+	if reservation.AgencyID != nil {
+		oldReservation.AgencyID = reservation.AgencyID
+	}
+	if reservation.TotalPeopleCount != nil {
+		oldReservation.TotalPeopleCount = reservation.TotalPeopleCount
+	}
+	oldReservation.StartDate = reservation.StartDate
+	oldReservation.EndDate = reservation.EndDate
+	oldReservation.UpdatedAt = time.Now()
+
+	err = s.repo.UpdateReservation(oldReservation)
 	if err != nil {
 		logger.Error(
 			"UpdateReservation: failed to update reservation %s: %v",
-			*reservation.Code,
+			reservation.Code,
 			err,
 		)
 		return err

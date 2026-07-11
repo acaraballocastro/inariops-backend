@@ -40,6 +40,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	userHandler := users.NewHandler(userService)
 	reservationHandler := reservations.NewHandler(reservationService)
 	tourDayHandler := tourdays.NewHandler(tourDayService)
+	guideHandler := guides.NewHandler(guidesService)
 
 	// Health
 	router.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
@@ -74,11 +75,17 @@ func NewRouter(db *sql.DB) *mux.Router {
 	// RESERVATIONS
 	// =====================
 
-	apiV1.HandleFunc("/reservations", reservationHandler.HandleReservations).
-		Methods(http.MethodGet, http.MethodPost)
+	apiV1.HandleFunc("/reservations", reservationHandler.GetAllReservations).
+		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations/{id}", reservationHandler.HandleReservations).
-		Methods(http.MethodGet, http.MethodPatch, http.MethodDelete)
+	apiV1.HandleFunc("/reservations/{code}", reservationHandler.GetReservationByCode).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/reservations", reservationHandler.CreateReservation).
+		Methods(http.MethodPost)
+
+	apiV1.HandleFunc("/reservations/{code}", reservationHandler.UpdateReservation).
+		Methods(http.MethodPatch)
 
 	// =====================
 	// TOUR DAYS
@@ -105,6 +112,12 @@ func NewRouter(db *sql.DB) *mux.Router {
 	// GUIDES
 	// =====================
 	apiV1.HandleFunc("/guides", userHandler.GetAllGuides).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/guides/{id}", guideHandler.GetGuideByID).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/guides/user/{user_id}", guideHandler.GetGuideByUserID).
 		Methods(http.MethodGet)
 
 	// Error handlers
