@@ -16,25 +16,6 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) HandleReservations(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if r.URL.Query().Get("code") != "" {
-			h.GetReservationByCode(w, r)
-		} else {
-			h.GetAllReservations(w, r)
-		}
-	case http.MethodPost:
-		h.CreateReservation(w, r)
-	case http.MethodPatch:
-		h.UpdateReservation(w, r)
-	case http.MethodDelete:
-		h.DeleteReservation(w, r)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
 // TODO: Add pagination
 func (h *Handler) GetAllReservations(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()

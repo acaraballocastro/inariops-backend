@@ -58,18 +58,33 @@ func NewRouter(db *sql.DB) *mux.Router {
 	// AUTH
 	// =====================
 
-	apiV1.HandleFunc("/auth", authHandler.HandleAuth).
-		Methods(http.MethodPost, http.MethodPatch)
+	apiV1.HandleFunc("/auth", authHandler.Login).
+		Methods(http.MethodPost)
+
+	apiV1.HandleFunc("/auth", authHandler.ChangePassword).
+		Methods(http.MethodPatch)
 
 	// =====================
 	// USERS
 	// =====================
 
-	apiV1.HandleFunc("/users", userHandler.HandleUsers).
-		Methods(http.MethodGet, http.MethodPost)
+	apiV1.HandleFunc("/users", userHandler.GetAllUsers).
+		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/users/{id}", userHandler.HandleUsers).
-		Methods(http.MethodGet, http.MethodPatch, http.MethodDelete)
+	apiV1.HandleFunc("/users/guides", userHandler.GetAllGuides).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/users", userHandler.CreateUser).
+		Methods(http.MethodPost)
+
+	apiV1.HandleFunc("/users/{id}", userHandler.GetUserByID).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/users/{id}", userHandler.UpdateUser).
+		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/users/{id}", userHandler.DeactivateUser).
+		Methods(http.MethodDelete)
 
 	// =====================
 	// RESERVATIONS
