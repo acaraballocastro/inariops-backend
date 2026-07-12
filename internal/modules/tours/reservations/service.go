@@ -66,6 +66,7 @@ func (s *Service) CreateReservation(reservation Reservation) error {
 			ReservationID: reservation.ID,
 			Title:         reservation.Title,
 			StartDateTime: reservation.StartDate.Add(time.Duration(i) * 24 * time.Hour),
+			PeopleCount:   reservation.TotalPeopleCount,
 			Duration:      nil,
 			Status:        domain.RESERVATION_PENDING_ASSIGNMENT,
 			VoucherStatus: domain.VOUCHER_NOT_GENERATED,
