@@ -2,6 +2,7 @@ package tourdays
 
 import (
 	"encoding/json"
+	"inariops/internal/shared/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -86,8 +87,11 @@ func (h *Handler) UpdateTourDay(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var tourDayInput UpdateTourDayInput
+	muxVars := mux.Vars(r)
+	tourDayInput.ID = muxVars["id"]
 
 	if err := json.NewDecoder(r.Body).Decode(&tourDayInput); err != nil {
+		logger.Error("Decode error: %v", err)
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
