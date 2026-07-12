@@ -25,31 +25,19 @@ type CreateUserRequest struct {
 	Role  string `json:"role"`
 }
 
-func (h *Handler) HandleUsers(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-
-	case http.MethodGet:
-		if r.URL.Query().Get("id") != "" {
-			h.getUserByID(w, r)
-		} else {
-			h.getAllUsers(w, r)
-		}
-
-	case http.MethodPost:
-		h.createUser(w, r)
-
-	case http.MethodPatch:
-		h.updateUser(w, r)
-
-	case http.MethodDelete:
-		h.deleteUser(w, r)
-
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+func (h *Handler) GetAllGuides(w http.ResponseWriter, r *http.Request) {
+	guides, err := h.service.GetAllGuides()
+	if err != nil {
+		http.Error(w, "failed to fetch guides", http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(guides)
 }
 
-func (h *Handler) getAllUsers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+
 	users, err := h.service.GetAllUsers()
 	if err != nil {
 		http.Error(w, "failed to fetch users", http.StatusInternalServerError)
@@ -60,7 +48,8 @@ func (h *Handler) getAllUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-func (h *Handler) getUserByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+
 	id := r.URL.Query().Get("id")
 
 	user, err := h.service.GetUserByID(id)
@@ -72,7 +61,8 @@ func (h *Handler) getUserByID(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, user)
 }
 
-func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	logger.Info("create user request")
 
 	var input CreateUserRequest
@@ -95,7 +85,9 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, createdUser)
 }
 
-func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	var input UpdateUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -112,12 +104,13 @@ func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, updatedUser)
 }
 
-func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	id := r.URL.Query().Get("id")
 
-	err := h.service.DeleteUser(id)
+	err := h.service.DeactivateUser(id)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "failed to delete user")
+		response.Error(w, http.StatusInternalServerError, "failed to deactivate user")
 		return
 	}
 

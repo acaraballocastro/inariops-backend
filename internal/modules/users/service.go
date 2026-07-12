@@ -3,14 +3,16 @@ package users
 import (
 	"inariops/internal/domain"
 	"inariops/internal/modules/auth"
+	"inariops/internal/modules/guides"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *Repository
-	auth *auth.Service
+	repo   *Repository
+	auth   *auth.Service
+	guides *guides.Service
 }
 
 type UpdateUserInput struct {
@@ -21,12 +23,41 @@ type UpdateUserInput struct {
 	Role  *domain.UserRole
 }
 
-func NewService(repo *Repository, auth *auth.Service) *Service {
-	return &Service{repo: repo, auth: auth}
+func NewService(repo *Repository, auth *auth.Service, guides *guides.Service) *Service {
+	return &Service{repo: repo, auth: auth, guides: guides}
 }
 
 func (s *Service) GetAllUsers() ([]domain.User, error) {
 	return s.repo.GetAllUsers()
+}
+
+func (s *Service) GetAllGuides() ([]domain.GuideUser, error) {
+	guides, err := s.guides.GetAllGuides()
+	if err != nil {
+		return nil, err
+	}
+
+	var guideUsers []domain.GuideUser
+	for _, guide := range guides {
+		user, err := s.repo.GetUserByID(guide.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		guideUser := domain.GuideUser{
+			ID:             guide.ID,
+			UserID:         guide.UserID,
+			Name:           user.Name,
+			Email:          user.Email,
+			Phone:          user.Phone,
+			MaxToursPerDay: guide.MaxToursPerDay,
+			CreatedAt:      guide.CreatedAt,
+		}
+		guideUsers = append(guideUsers, guideUser)
+	}
+
+	return guideUsers, nil
+
 }
 
 func (s *Service) CreateUser(name, email, phone string, role string) (domain.UserCredentials, error) {
@@ -50,11 +81,24 @@ func (s *Service) CreateUser(name, email, phone string, role string) (domain.Use
 		return domain.UserCredentials{}, err
 	}
 
-authCredentials, err := s.auth.CreateCredentials(user.ID)
-if err != nil {
-	_ = s.repo.DeleteUser(user.ID)
-	return domain.UserCredentials{}, err
-}
+	authCredentials, err := s.auth.CreateCredentials(user.ID)
+	if err != nil {
+		_ = s.repo.DeleteUser(user.ID)
+		return domain.UserCredentials{}, err
+	}
+
+	guide := domain.Guide{
+		ID:             uuid.New().String(),
+		UserID:         user.ID,
+		MaxToursPerDay: 1, // Set a default value
+		CreatedAt:      time.Now(),
+	}
+
+	err = s.guides.CreateGuide(guide)
+	if err != nil {
+		_ = s.repo.DeleteUser(user.ID)
+		return domain.UserCredentials{}, err
+	}
 
 	return domain.UserCredentials{
 		User:            user,
@@ -99,6 +143,10 @@ func (s *Service) UpdateUser(input UpdateUserInput) (domain.User, error) {
 	}
 
 	return *user, nil
+}
+
+func (s *Service) DeactivateUser(id string) error {
+	return s.repo.DeactivateUser(id)
 }
 
 func (s *Service) DeleteUser(id string) error {

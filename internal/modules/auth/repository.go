@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"inariops/internal/domain"
+	"inariops/internal/shared/errors"
 )
 
 type Repository struct {
@@ -46,7 +47,7 @@ func (r *Repository) CreateCredentials(credentials Credentials) error {
 }
 
 func (r *Repository) UpdatePassword(userID, hash string) error {
-	_, err := r.db.Exec(`
+	result, err := r.db.Exec(`
 		UPDATE user_credentials
 		SET password_hash = $1,
 		    must_change_password = false,
@@ -54,5 +55,18 @@ func (r *Repository) UpdatePassword(userID, hash string) error {
 		WHERE user_id = $2
 	`, hash, userID)
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.ErrUserNotFound
+	}
+
+	return nil
 }

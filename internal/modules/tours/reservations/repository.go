@@ -100,29 +100,23 @@ func (r *Repository) UpdateReservation(reservation Reservation) error {
 		UPDATE reservations
 		SET title = $1,
 			description = $2,
-			status = $3,
-			quote_number = $4,
-			file_number = $5,
-			agency_id = $6,
-			total_people_count = $7,
-			start_date = $8,
-			end_date = $9,
-			signature_status = $10,
-			voucher_status = $11,
+			quote_number = $3,
+			file_number = $4,
+			agency_id = $5,
+			total_people_count = $6,
+			start_date = $7,
+			end_date = $8,
 			updated_at = NOW()
-		WHERE code = $12
+		WHERE code = $9
 	`,
 		reservation.Title,
 		reservation.Description,
-		reservation.Status,
 		reservation.QuoteNumber,
 		reservation.FileNumber,
 		reservation.AgencyID,
 		reservation.TotalPeopleCount,
 		reservation.StartDate,
 		reservation.EndDate,
-		reservation.SignatureStatus,
-		reservation.VoucherStatus,
 		reservation.Code,
 	)
 

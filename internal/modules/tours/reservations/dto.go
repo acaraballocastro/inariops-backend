@@ -15,8 +15,8 @@ type Reservation struct {
 	FileNumber       *string                  `json:"file_number"`
 	AgencyID         *string                  `json:"agency_id"`
 	TotalPeopleCount *int                     `json:"total_people_count"`
-	StartDate        *time.Time               `json:"start_date"`
-	EndDate          *time.Time               `json:"end_date"`
+	StartDate        time.Time                `json:"start_date"`
+	EndDate          time.Time                `json:"end_date"`
 	SignatureStatus  domain.SignatureStatus   `json:"signature_status"`
 	VoucherStatus    domain.VoucherStatus     `json:"voucher_status"`
 	CreatedAt        time.Time                `json:"created_at"`
@@ -24,20 +24,24 @@ type Reservation struct {
 }
 
 type CreateReservationRequest struct {
-	Title            *string    `json:"title"`
-	Description      *string    `json:"description"`
-	AgencyID         *string    `json:"agency_id"`
-	TotalPeopleCount *int       `json:"total_people_count"`
-	StartDate        *time.Time `json:"start_date"`
-	EndDate          *time.Time `json:"end_date"`
+	Title            *string   `json:"title"`
+	Description      *string   `json:"description"`
+	AgencyID         *string   `json:"agency_id"`
+	TotalPeopleCount *int      `json:"total_people_count"`
+	StartDate        time.Time `json:"start_date"`
+	EndDate          time.Time `json:"end_date"`
 }
 
 type UpdateReservationRequest struct {
 	Code             string
-	Title            *string
-	Description      *string
-	AgencyID         *string
-	TotalPeopleCount *int
-	StartDate        *time.Time
-	EndDate          *time.Time
+	Title            *string   `json:"title"`
+	Description      *string   `json:"description"`
+	QuoteNumber      *string   `json:"quote_number"`
+	FileNumber       *string   `json:"file_number"`
+	AgencyID         *string   `json:"agency_id"`
+	TotalPeopleCount *int      `json:"total_people_count"`
+	StartDate        time.Time `json:"start_date"`
+	EndDate          time.Time `json:"end_date"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }

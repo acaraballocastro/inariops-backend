@@ -13,18 +13,8 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		h.Login(w, r)
-	case http.MethodPatch:
-		h.ChangePassword(w, r)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	var req LoginRequest
 
@@ -44,6 +34,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	var req ChangePasswordRequest
 

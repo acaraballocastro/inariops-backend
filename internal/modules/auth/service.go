@@ -3,7 +3,7 @@ package auth
 import (
 	"inariops/internal/domain"
 	"inariops/internal/shared/errors"
-	"log"
+	"inariops/internal/shared/logger"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,21 +21,26 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
+		logger.Error("Login: failed to get user for email %s: %v", email, err)
 		return LoginResponse{}, errors.ErrUserNotFound
 	}
 	if !user.IsActive {
+		logger.Error("Login: user %s is not active", user.ID)
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
 	cred, err := s.repo.GetCredentials(user.ID)
 	if err != nil {
+		logger.Error("Login: failed to get credentials for user %s: %v", user.ID, err)
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 	if !cred.IsActive {
+		logger.Error("Login: credentials for user %s are not active", user.ID)
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
 	if !CheckPassword(cred.PasswordHash, password) {
+		logger.Error("Login: failed for email %s", user.Email)
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
@@ -52,41 +57,50 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 	}, nil
 }
 
+// TODO: Add a way to get the userID from the token.
 func (s *Service) ChangePassword(userID, oldPass, newPass string) error {
 
 	cred, err := s.repo.GetCredentials(userID)
 	if err != nil {
-		log.Printf("ChangePassword: failed to get credentials for user %s: %v", userID, err)
+		logger.Error("ChangePassword: failed to get credentials for user %s: %v", userID, err)
 		return errors.ErrUserNotFound
 	}
 
 	if !CheckPassword(cred.PasswordHash, oldPass) {
-		log.Printf("ChangePassword: old password does not match for user %s", userID)
+		logger.Error("ChangePassword: old password does not match for user %s", userID)
 		return errors.ErrUnauthorized
+	}
+
+	if !CheckNewPassword(newPass) {
+		logger.Error("ChangePassword: new password does not meet security requirements for user %s", userID)
+		return errors.ErrWeakPassword
 	}
 
 	hash, err := HashPassword(newPass)
 	if err != nil {
-		log.Printf("ChangePassword: failed to hash new password for user %s: %v", userID, err)
+		logger.Error("ChangePassword: failed to hash new password for user %s: %v", userID, err)
 		return err
 	}
 
 	if err := s.repo.UpdatePassword(userID, hash); err != nil {
-		log.Printf("ChangePassword: failed to update password for user %s: %v", userID, err)
+		logger.Error("ChangePassword: failed to update password for user %s: %v", userID, err)
 		return err
 	}
 
 	return nil
 }
 
+// TODO: Add a function to reset password and send email with new password
 func (s *Service) CreateCredentials(userID string) (domain.AuthCredentials, error) {
 	password, err := createDefaultPassword()
 	if err != nil {
+		logger.Error("CreateCredentials: failed to create default password for user %s: %v", userID, err)
 		return domain.AuthCredentials{}, err
 	}
 
 	passwordHash, err := HashPassword(password)
 	if err != nil {
+		logger.Error("CreateCredentials: failed to hash password for user %s: %v", userID, err)
 		return domain.AuthCredentials{}, err
 	}
 
@@ -106,3 +120,5 @@ func (s *Service) CreateCredentials(userID string) (domain.AuthCredentials, erro
 		IsActive:           credentials.IsActive,
 	}, s.repo.CreateCredentials(credentials)
 }
+
+//TODO: Add a function to reset password and send email with new password
