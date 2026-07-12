@@ -76,42 +76,76 @@ func (s *Service) CreateTourDay(tourDayInput CreateTourDayInput) error {
 	return nil
 }
 
-func (s *Service) UpdateTourDay(tourDayInput UpdateTourDayInput) error {
+func (s *Service) UpdateTourDay(input UpdateTourDayInput) error {
 	logger.Info("UpdateTourDay: updating tour day")
-	tourDay := tours.TourDay{
-		ID:                     tourDayInput.ID,
-		ReservationID:          tourDayInput.ReservationID,
-		Title:                  tourDayInput.Title,
-		StartDateTime:          tourDayInput.StartDateTime,
-		Duration:               tourDayInput.Duration,
-		ZoneID:                 tourDayInput.ZoneID,
-		GuideID:                nil,
-		Status:                 tourDayInput.Status,
-		PeopleCount:            tourDayInput.PeopleCount,
-		Remuneration:           tourDayInput.Remuneration,
-		MeetingPoint:           tourDayInput.MeetingPoint,
-		GuideHotelID:           tourDayInput.GuideHotelID,
-		CustomerHotelID:        tourDayInput.CustomerHotelID,
-		GuideLiabilityNotes:    tourDayInput.GuideLiabilityNotes,
-		CustomerLiabilityNotes: tourDayInput.CustomerLiabilityNotes,
-		VoucherStatus:          tourDayInput.VoucherStatus,
-		UpdatedAt:              time.Now(),
-	}
+	logger.Info("UpdateTourDay: input: %+v", input)
 
-	if tourDay.ReservationID == "" {
-		logger.Error("UpdateTourDay: invalid input - reservation ID is required")
-		return errors.ErrInvalidInput
-	}
-
-	err := s.repo.UpdateTourDay(tourDay)
+	tourDay, err := s.repo.GetTourDayByID(input.ID)
 	if err != nil {
-		logger.Error("UpdateTourDay: failed to update tour day", "tour day ID %s: %v", tourDay.ID, err)
+		logger.Error("UpdateTourDay: failed to get tour day: %v", err)
 		return err
 	}
 
-	return nil
-}
+	if input.Title != nil {
+		tourDay.Title = input.Title
+	}
 
+	if !input.StartDateTime.IsZero() {
+		tourDay.StartDateTime = input.StartDateTime
+	}
+
+	if input.Duration != nil {
+		tourDay.Duration = input.Duration
+	}
+
+	if input.ZoneID != nil {
+		tourDay.ZoneID = input.ZoneID
+	}
+
+	if input.GuideID != nil {
+		tourDay.GuideID = input.GuideID
+	}
+
+	if input.PeopleCount != nil {
+		tourDay.PeopleCount = input.PeopleCount
+	}
+
+	if input.MeetingPoint != nil {
+		tourDay.MeetingPoint = input.MeetingPoint
+	}
+
+	if input.GuideHotelID != nil {
+		tourDay.GuideHotelID = input.GuideHotelID
+	}
+
+	if input.CustomerHotelID != nil {
+		tourDay.CustomerHotelID = input.CustomerHotelID
+	}
+
+	if input.GuideLiabilityNotes != nil {
+		tourDay.GuideLiabilityNotes = input.GuideLiabilityNotes
+	}
+
+	if input.CustomerLiabilityNotes != nil {
+		tourDay.CustomerLiabilityNotes = input.CustomerLiabilityNotes
+	}
+
+	if input.Remuneration != nil {
+		tourDay.Remuneration = input.Remuneration
+	}
+
+	if input.Status != "" {
+		tourDay.Status = input.Status
+	}
+
+	if input.VoucherStatus != "" {
+		tourDay.VoucherStatus = input.VoucherStatus
+	}
+
+	tourDay.UpdatedAt = time.Now()
+
+	return s.repo.UpdateTourDay(tourDay)
+}
 func (s *Service) CancelTourDay(id string) error {
 	logger.Info("CancelTourDay: canceling tour day")
 	return s.repo.CancelTourDay(id)
