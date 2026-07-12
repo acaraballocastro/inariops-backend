@@ -52,24 +52,35 @@ func (s *Service) CreateReservation(reservation Reservation) error {
 }
 
 func (s *Service) UpdateReservation(reservation Reservation) error {
+	logger.Info("UpdateReservation: request received")
+
 	if reservation.Code == nil || *reservation.Code == "" {
-		logger.Error("UpdateReservation: invalid input - code is required")
+		logger.Error("UpdateReservation: invalid input - reservation code is required")
 		return errors.ErrInvalidReservationCode
 	}
+
+	logger.Info(
+		"UpdateReservation: updating reservation with code=%s",
+		*reservation.Code,
+	)
 
 	err := s.repo.UpdateReservation(reservation)
 	if err != nil {
 		logger.Error(
-			"UpdateReservation: failed to update reservation %s: %v",
+			"UpdateReservation: failed to update reservation code=%s: %v",
 			*reservation.Code,
 			err,
 		)
 		return err
 	}
 
+	logger.Info(
+		"UpdateReservation: reservation updated successfully code=%s",
+		*reservation.Code,
+	)
+
 	return nil
 }
-
 func (s *Service) DeleteReservation(code string) error {
 	if code == "" {
 

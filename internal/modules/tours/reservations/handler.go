@@ -2,7 +2,10 @@ package reservations
 
 import (
 	"encoding/json"
+	"inariops/internal/shared/logger"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -11,25 +14,6 @@ type Handler struct {
 
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
-}
-
-func (h *Handler) HandleReservations(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if r.URL.Query().Get("code") != "" {
-			h.GetReservationByCode(w, r)
-		} else {
-			h.GetAllReservations(w, r)
-		}
-	case http.MethodPost:
-		h.CreateReservation(w, r)
-	case http.MethodPatch:
-		h.UpdateReservation(w, r)
-	case http.MethodDelete:
-		h.DeleteReservation(w, r)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
 }
 
 // TODO: Add pagination
@@ -47,7 +31,7 @@ func (h *Handler) GetAllReservations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetReservationByCode(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
+	code := mux.Vars(r)["code"]
 
 	reservation, err := h.service.GetReservationByCode(code)
 	if err != nil {
@@ -62,12 +46,21 @@ func (h *Handler) GetReservationByCode(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	var reservation Reservation
+	var reservationReceived CreateReservationRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&reservation); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&reservationReceived); err != nil {
+		logger.Error("Decode error: %v", err)
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
+	var reservation Reservation
+	reservation.Title = reservationReceived.Title
+	reservation.Description = reservationReceived.Description
+	reservation.AgencyID = reservationReceived.AgencyID
+	reservation.TotalPeopleCount = reservationReceived.TotalPeopleCount
+	reservation.StartDate = reservationReceived.StartDate
+	reservation.EndDate = reservationReceived.EndDate
 
 	err := h.service.CreateReservation(reservation)
 	if err != nil {
@@ -80,15 +73,16 @@ func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UpdateReservation(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var reservation Reservation
+
+	var reservation UpdateReservationRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&reservation); err != nil {
+		logger.Error("Decode error: %v", err)
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.UpdateReservation(reservation)
-	if err != nil {
+	if err := h.service.UpdateReservation(reservation); err != nil {
 		http.Error(w, "failed to update reservation", http.StatusInternalServerError)
 		return
 	}
