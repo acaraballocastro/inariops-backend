@@ -16,8 +16,10 @@ RUN go mod download
 COPY . .
 
 # Compilar
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" \
+RUN CGO_ENABLED=0 \
+    go build \
+    -trimpath \
+    -ldflags="-s -w" \
     -o inariops \
     ./cmd/api
 
