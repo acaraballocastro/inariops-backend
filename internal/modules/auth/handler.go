@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"inariops/internal/shared/logger"
 	"net/http"
 )
 
@@ -25,7 +26,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.service.Login(req.Email, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+
+		logger.Error("Login failed:", err)
 		return
 	}
 
@@ -45,7 +48,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.ChangePassword(req.UserID, req.OldPassword, req.NewPassword)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		logger.Error("Change password failed:", err)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 

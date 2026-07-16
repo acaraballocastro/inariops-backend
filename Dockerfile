@@ -1,7 +1,7 @@
 # ----------------------------------
 # Builder
 # ----------------------------------
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26.3-alpine AS builder
 
 WORKDIR /app
 
@@ -16,8 +16,10 @@ RUN go mod download
 COPY . .
 
 # Compilar
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" \
+RUN CGO_ENABLED=0 \
+    go build \
+    -trimpath \
+    -ldflags="-s -w" \
     -o inariops \
     ./cmd/api
 

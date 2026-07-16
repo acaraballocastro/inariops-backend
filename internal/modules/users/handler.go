@@ -5,6 +5,8 @@ import (
 	"inariops/internal/shared/logger"
 	"inariops/internal/shared/response"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -50,7 +52,8 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
-	id := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	id := vars["id"]
 
 	user, err := h.service.GetUserByID(id)
 	if err != nil {
