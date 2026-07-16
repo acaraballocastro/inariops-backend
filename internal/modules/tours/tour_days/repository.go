@@ -188,3 +188,34 @@ func (r *Repository) CancelTourDay(id string) error {
 	)
 	return err
 }
+
+func (r *Repository) AssignGuide(tourDayID string, guideID string) error {
+	_, err := r.db.Exec(`
+		UPDATE tour_days SET
+			guide_id = $1,
+			status = $2,
+			updated_at = $3
+		WHERE id = $4
+	`,
+		guideID,
+		domain.RESERVATION_GUIDE_PREASSIGNED,
+		time.Now(),
+		tourDayID,
+	)
+	return err
+}
+
+func (r *Repository) UnassignGuide(tourDayID string) error {
+	_, err := r.db.Exec(`
+		UPDATE tour_days SET
+			guide_id = NULL,
+			status = $1,
+			updated_at = $2
+		WHERE id = $3
+	`,
+		domain.RESERVATION_PENDING_ASSIGNMENT,
+		time.Now(),
+		tourDayID,
+	)
+	return err
+}

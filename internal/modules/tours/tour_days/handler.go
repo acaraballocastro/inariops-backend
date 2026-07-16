@@ -2,6 +2,7 @@ package tourdays
 
 import (
 	"encoding/json"
+	"fmt"
 	"inariops/internal/shared/logger"
 	"net/http"
 
@@ -99,6 +100,42 @@ func (h *Handler) UpdateTourDay(w http.ResponseWriter, r *http.Request) {
 	err := h.service.UpdateTourDay(tourDayInput)
 	if err != nil {
 		http.Error(w, "failed to update tour day", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) AssignGuide(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var guideID string
+	muxVars := mux.Vars(r)
+	guideID = muxVars["guide_id"]
+	tourDayID := muxVars["id"]
+
+	err := h.service.AssignGuide(tourDayID, guideID)
+	if err != nil {
+		message := "failed to assign guide to tour day: %v"
+		http.Error(w, fmt.Sprintf(message, tourDayID, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) UnassignGuide(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var guideID string
+	muxVars := mux.Vars(r)
+	guideID = muxVars["guide_id"]
+	tourDayID := muxVars["id"]
+
+	err := h.service.UnassignGuide(tourDayID, guideID)
+	if err != nil {
+		message := "failed to unassign guide from tour day: %v"
+		http.Error(w, fmt.Sprintf(message, tourDayID, err), http.StatusInternalServerError)
 		return
 	}
 
