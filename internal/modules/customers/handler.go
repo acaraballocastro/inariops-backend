@@ -2,6 +2,7 @@ package customers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -21,6 +22,7 @@ func (h *Handler) CreateCustomer(w http.ResponseWriter, r *http.Request) {
 	var input CreateCustomerInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
+		log.Printf("Error decoding request body: %v", err)
 		return
 	}
 
@@ -47,8 +49,10 @@ func (h *Handler) GetCustomerByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	id := mux.Vars(r)["id"]
 
 	var input UpdateCustomerInput
+	input.ID = &id
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return

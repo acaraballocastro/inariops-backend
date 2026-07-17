@@ -22,7 +22,7 @@ func (s *Service) CreateCustomer(input CreateCustomerInput) error {
 		DocumentNumber: input.DocumentNumber,
 		Phone:          input.Phone,
 		Email:          input.Email,
-		Age:            input.Age,
+		Age:            *input.Age,
 		CreatedAt:      time.Now(),
 	}
 
