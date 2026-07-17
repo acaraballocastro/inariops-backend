@@ -235,7 +235,11 @@ func (s *Service) UnassignGuide(tourDays []string, guideID string) error {
 			return errors.ErrGuideNotAssigned
 		}
 
-		return s.repo.UnassignGuide(tourDayID)
+		err = s.repo.UnassignGuide(tourDayID)
+		if err != nil {
+			logger.Error("UnassignGuide: failed to unassign guide from tour day: %v", err)
+			return err
+		}
 	}
 	return nil
 
