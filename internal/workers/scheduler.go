@@ -2,7 +2,7 @@ package workers
 
 import (
 	"context"
-	"log"
+	"inariops/internal/shared/logger"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 }
 
 func (s *Scheduler) startWorker(ctx context.Context, worker Worker) {
-	log.Printf("[WORKER] %s started", worker.Name())
+	logger.Info("[WORKER] %s started", worker.Name())
 
 	ticker := time.NewTicker(worker.Interval())
 	defer ticker.Stop()
@@ -36,7 +36,7 @@ func (s *Scheduler) startWorker(ctx context.Context, worker Worker) {
 		select {
 
 		case <-ctx.Done():
-			log.Printf("[WORKER] %s stopped", worker.Name())
+			logger.Info("[WORKER] %s stopped", worker.Name())
 			return
 
 		case <-ticker.C:

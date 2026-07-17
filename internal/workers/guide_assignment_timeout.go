@@ -2,10 +2,11 @@ package workers
 
 import (
 	"context"
-	"log"
 	"time"
 
+	"inariops/internal/domain"
 	tourdays "inariops/internal/modules/tours/tour_days"
+	"inariops/internal/shared/logger"
 )
 
 type GuideAssignmentTimeoutWorker struct {
@@ -26,12 +27,22 @@ func (w *GuideAssignmentTimeoutWorker) Interval() time.Duration {
 	return time.Minute
 }
 
-func (w *GuideAssignmentTimeoutWorker) Run(ctx context.Context) {
+func (w *GuideAssignmentTimeoutWorker) Run(ctx context.Context) (domain.Result, error) {
+	var result domain.Result
 
-	log.Println("[WORKER] Checking expired guide assignments...")
+	logger.Debug("[WORKER] Checking expired guide assignments...")
 
-	err := w.service.ProcessExpiredGuideAssignments(ctx)
+	result, err := w.service.ProcessExpiredGuideAssignments(ctx)
 	if err != nil {
-		log.Println(err)
+		logger.Error("[WORKER] Failed to process expired guide assignments: %v", err)
 	}
+
+	logger.Info(
+		"[WORKER] Assigned guide assignments: found=%d processed=%d failed=%d",
+		result.Found,
+		result.Processed,
+		result.Failed,
+	)
+
+	return result, nil
 }

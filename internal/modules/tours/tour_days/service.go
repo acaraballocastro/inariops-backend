@@ -247,22 +247,26 @@ func (s *Service) UnassignGuide(tourDays []string, guideID string) error {
 }
 
 // TODO: Add a Worker to handle automatic changing of status
-func (s *Service) ProcessExpiredGuideAssignments(ctx context.Context) error {
+func (s *Service) ProcessExpiredGuideAssignments(ctx context.Context) (domain.Result, error) {
+	var result domain.Result
 
 	tours, err := s.repo.GetExpiredGuideAssignments(ctx)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	for _, tour := range tours {
+		result.Found++
 
 		err := s.repo.UpdateTourDayStatus(tour.ID, domain.RESERVATION_GUIDE_CONFIRMED)
 		if err != nil {
-			logger.Error("ProcessExpiredGuideAssignments: failed to update tour day status: %v", err)
-			return err
+			result.Failed++
+			continue
 		}
+
+		result.Processed++
 
 	}
 
-	return nil
+	return result, nil
 }
