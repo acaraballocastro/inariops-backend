@@ -33,7 +33,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	guidesService := guides.NewService(guidesRepo)
 	userService := users.NewService(userRepo, authService, guidesService)
 	reservationService := reservations.NewService(reservationRepo, tourDayRepo)
-	tourDayService := tourdays.NewService(tourDayRepo)
+	tourDayService := tourdays.NewService(tourDayRepo, guidesRepo)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -117,6 +117,12 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	apiV1.HandleFunc("/tour-days/{id}", tourDayHandler.CancelTourDay).
 		Methods(http.MethodDelete)
+
+	apiV1.HandleFunc("/tour-days/{id}/assign/{guide_id}", tourDayHandler.AssignGuide).
+		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/tour-days/{id}/unassign/{guide_id}", tourDayHandler.UnassignGuide).
+		Methods(http.MethodPatch)
 
 	apiV1.HandleFunc(
 		"/tour-days/by-reservation/{reservation_id}",

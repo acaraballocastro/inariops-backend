@@ -42,3 +42,7 @@ type UpdateTourDayInput struct {
 type CancelTourDayInput struct {
 	ID string `json:"id" validate:"required"`
 }
+
+type AssignGuideInput struct {
+	TourDayID []string `json:"tour_days_id" validate:"required"`
+}

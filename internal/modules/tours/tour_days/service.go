@@ -2,6 +2,7 @@ package tourdays
 
 import (
 	"inariops/internal/domain"
+	"inariops/internal/modules/guides"
 	tours "inariops/internal/modules/tours/shared"
 	"inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
@@ -11,11 +12,12 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo      *Repository
+	guideRepo *guides.Repository
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, guideRepo *guides.Repository) *Service {
+	return &Service{repo: repo, guideRepo: guideRepo}
 }
 
 func (s *Service) GetTourDaysByTourID(tourID string) (tours.TourDay, error) {
@@ -150,3 +152,97 @@ func (s *Service) CancelTourDay(id string) error {
 	logger.Info("CancelTourDay: canceling tour day")
 	return s.repo.CancelTourDay(id)
 }
+
+func (s *Service) AssignGuide(tourDays []string, guideID string) error {
+	logger.Info("AssignGuide: assigning guide to tour days")
+
+	if len(tourDays) == 0 {
+		logger.Error("AssignGuide: invalid input - at least one tour day ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	if guideID == "" {
+		logger.Error("AssignGuide: invalid input - guide ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	if guideID == "" {
+		logger.Error("AssignGuide: invalid input - guide ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	guide, err := s.guideRepo.GetGuideByID(guideID)
+	if err != nil {
+		logger.Error("AssignGuide: failed to get guide: %v", err)
+		return errors.ErrGuideNotFound
+	}
+
+	for _, tourDayID := range tourDays {
+		tourDay, err := s.repo.GetTourDayByID(tourDayID)
+		if err != nil {
+			logger.Error("AssignGuide: failed to get tour day: %v", err)
+			return errors.ErrTourDayNotFound
+		}
+
+		if tourDay.Status == domain.RESERVATION_CANCELLED {
+			logger.Error("AssignGuide: cannot assign guide to a cancelled tour day")
+			return errors.ErrTourDayCancelled
+		}
+
+		if tourDay.GuideID != nil {
+			logger.Error("AssignGuide: tour day already has a guide assigned")
+			return errors.ErrGuideAlreadyAssigned
+		}
+
+		err = s.repo.AssignGuide(tourDayID, guide.ID)
+		if err != nil {
+			logger.Error("AssignGuide: failed to assign guide to tour day: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) UnassignGuide(tourDays []string, guideID string) error {
+	logger.Info("UnassignGuide: unassigning guide from tour day")
+
+	if len(tourDays) == 0 {
+		logger.Error("UnassignGuide: invalid input - at least one tour day ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	if guideID == "" {
+		logger.Error("UnassignGuide: invalid input - guide ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	guide, err := s.guideRepo.GetGuideByID(guideID)
+	if err != nil {
+		logger.Error("UnassignGuide: failed to get guide: %v", err)
+		return errors.ErrGuideNotFound
+	}
+
+	for _, tourDayID := range tourDays {
+		tourDay, err := s.repo.GetTourDayByID(tourDayID)
+		if err != nil {
+			logger.Error("UnassignGuide: failed to get tour day: %v", err)
+			return errors.ErrTourDayNotFound
+		}
+
+		if tourDay.GuideID == nil || *tourDay.GuideID != guide.ID {
+			logger.Error("UnassignGuide: guide is not assigned to this tour day")
+			return errors.ErrGuideNotAssigned
+		}
+
+		err = s.repo.UnassignGuide(tourDayID)
+		if err != nil {
+			logger.Error("UnassignGuide: failed to unassign guide from tour day: %v", err)
+			return err
+		}
+	}
+	return nil
+
+}
+
+//TODO: Add a Worker to handle automatic changing of status
