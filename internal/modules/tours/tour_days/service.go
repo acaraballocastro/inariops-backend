@@ -153,11 +153,16 @@ func (s *Service) CancelTourDay(id string) error {
 	return s.repo.CancelTourDay(id)
 }
 
-func (s *Service) AssignGuide(tourDayID string, guideID string) error {
-	logger.Info("AssignGuide: assigning guide to tour day")
+func (s *Service) AssignGuide(tourDays []string, guideID string) error {
+	logger.Info("AssignGuide: assigning guide to tour days")
 
-	if tourDayID == "" {
-		logger.Error("AssignGuide: invalid input - tour day ID is required")
+	if len(tourDays) == 0 {
+		logger.Error("AssignGuide: invalid input - at least one tour day ID is required")
+		return errors.ErrInvalidInput
+	}
+
+	if guideID == "" {
+		logger.Error("AssignGuide: invalid input - guide ID is required")
 		return errors.ErrInvalidInput
 	}
 
@@ -172,30 +177,38 @@ func (s *Service) AssignGuide(tourDayID string, guideID string) error {
 		return errors.ErrGuideNotFound
 	}
 
-	tourDay, err := s.repo.GetTourDayByID(tourDayID)
-	if err != nil {
-		logger.Error("AssignGuide: failed to get tour day: %v", err)
-		return errors.ErrTourDayNotFound
+	for _, tourDayID := range tourDays {
+		tourDay, err := s.repo.GetTourDayByID(tourDayID)
+		if err != nil {
+			logger.Error("AssignGuide: failed to get tour day: %v", err)
+			return errors.ErrTourDayNotFound
+		}
+
+		if tourDay.Status == domain.RESERVATION_CANCELLED {
+			logger.Error("AssignGuide: cannot assign guide to a cancelled tour day")
+			return errors.ErrTourDayCancelled
+		}
+
+		if tourDay.GuideID != nil {
+			logger.Error("AssignGuide: tour day already has a guide assigned")
+			return errors.ErrGuideAlreadyAssigned
+		}
+
+		err = s.repo.AssignGuide(tourDayID, guide.ID)
+		if err != nil {
+			logger.Error("AssignGuide: failed to assign guide to tour day: %v", err)
+			return err
+		}
 	}
 
-	if tourDay.Status == domain.RESERVATION_CANCELLED {
-		logger.Error("AssignGuide: cannot assign guide to a cancelled tour day")
-		return errors.ErrTourDayCancelled
-	}
-
-	if tourDay.GuideID != nil {
-		logger.Error("AssignGuide: tour day already has a guide assigned")
-		return errors.ErrGuideAlreadyAssigned
-	}
-
-	return s.repo.AssignGuide(tourDayID, guide.ID)
+	return nil
 }
 
-func (s *Service) UnassignGuide(tourDayID string, guideID string) error {
+func (s *Service) UnassignGuide(tourDays []string, guideID string) error {
 	logger.Info("UnassignGuide: unassigning guide from tour day")
 
-	if tourDayID == "" {
-		logger.Error("UnassignGuide: invalid input - tour day ID is required")
+	if len(tourDays) == 0 {
+		logger.Error("UnassignGuide: invalid input - at least one tour day ID is required")
 		return errors.ErrInvalidInput
 	}
 
@@ -210,18 +223,22 @@ func (s *Service) UnassignGuide(tourDayID string, guideID string) error {
 		return errors.ErrGuideNotFound
 	}
 
-	tourDay, err := s.repo.GetTourDayByID(tourDayID)
-	if err != nil {
-		logger.Error("UnassignGuide: failed to get tour day: %v", err)
-		return errors.ErrTourDayNotFound
-	}
+	for _, tourDayID := range tourDays {
+		tourDay, err := s.repo.GetTourDayByID(tourDayID)
+		if err != nil {
+			logger.Error("UnassignGuide: failed to get tour day: %v", err)
+			return errors.ErrTourDayNotFound
+		}
 
-	if tourDay.GuideID == nil || *tourDay.GuideID != guide.ID {
-		logger.Error("UnassignGuide: guide is not assigned to this tour day")
-		return errors.ErrGuideNotAssigned
-	}
+		if tourDay.GuideID == nil || *tourDay.GuideID != guide.ID {
+			logger.Error("UnassignGuide: guide is not assigned to this tour day")
+			return errors.ErrGuideNotAssigned
+		}
 
-	return s.repo.UnassignGuide(tourDayID)
+		return s.repo.UnassignGuide(tourDayID)
+	}
+	return nil
+
 }
 
 //TODO: Add a Worker to handle automatic changing of status
