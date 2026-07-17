@@ -1,6 +1,7 @@
 package tourdays
 
 import (
+	"context"
 	"inariops/internal/domain"
 	"inariops/internal/modules/guides"
 	tours "inariops/internal/modules/tours/shared"
@@ -245,4 +246,23 @@ func (s *Service) UnassignGuide(tourDays []string, guideID string) error {
 
 }
 
-//TODO: Add a Worker to handle automatic changing of status
+// TODO: Add a Worker to handle automatic changing of status
+func (s *Service) ProcessExpiredGuideAssignments(ctx context.Context) error {
+
+	tours, err := s.repo.GetExpiredGuideAssignments(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, tour := range tours {
+
+		err := s.repo.UpdateTourDayStatus(tour.ID, domain.RESERVATION_GUIDE_CONFIRMED)
+		if err != nil {
+			logger.Error("ProcessExpiredGuideAssignments: failed to update tour day status: %v", err)
+			return err
+		}
+
+	}
+
+	return nil
+}

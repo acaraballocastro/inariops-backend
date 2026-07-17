@@ -1,6 +1,7 @@
 package tourdays
 
 import (
+	"context"
 	"database/sql"
 	"inariops/internal/domain"
 	tours "inariops/internal/modules/tours/shared"
@@ -214,6 +215,45 @@ func (r *Repository) UnassignGuide(tourDayID string) error {
 		WHERE id = $3
 	`,
 		domain.RESERVATION_PENDING_ASSIGNMENT,
+		time.Now(),
+		tourDayID,
+	)
+	return err
+}
+
+// Worker jobs
+func (r *Repository) GetExpiredGuideAssignments(ctx context.Context) ([]tours.TourDay, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, reservation_id, status, updated_at
+		FROM tour_days
+		WHERE status = $1 AND updated_at < $2
+	`, domain.RESERVATION_GUIDE_PREASSIGNED, time.Now().Add(-24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var expiredTourDays []tours.TourDay
+	for rows.Next() {
+		var tourDay tours.TourDay
+		err := rows.Scan(&tourDay.ID, &tourDay.ReservationID, &tourDay.Status, &tourDay.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		expiredTourDays = append(expiredTourDays, tourDay)
+	}
+
+	return expiredTourDays, nil
+}
+
+func (r *Repository) UpdateTourDayStatus(tourDayID string, status domain.ReservationStatus) error {
+	_, err := r.db.Exec(`
+		UPDATE tour_days SET
+			status = $1,
+			updated_at = $2
+		WHERE id = $3
+	`,
+		status,
 		time.Now(),
 		tourDayID,
 	)
