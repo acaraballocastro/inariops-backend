@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"database/sql"
+	"log"
 	"net/http"
 
 	"inariops/internal/modules/auth"
@@ -11,6 +13,7 @@ import (
 	"inariops/internal/modules/users"
 	"inariops/internal/shared/logger"
 	"inariops/internal/shared/response"
+	"inariops/internal/workers"
 
 	"github.com/gorilla/mux"
 )
@@ -140,6 +143,18 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	apiV1.HandleFunc("/guides/user/{user_id}", guideHandler.GetGuideByUserID).
 		Methods(http.MethodGet)
+
+	ctx := context.Background()
+
+	scheduler := workers.NewScheduler()
+
+	scheduler.Register(
+		workers.NewGuideAssignmentTimeoutWorker(tourDayService),
+	)
+
+	scheduler.Start(ctx)
+
+	log.Fatal(http.ListenAndServe(":9142", router))
 
 	// Error handlers
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
