@@ -58,6 +58,38 @@ var (
 		Code:    "WEAK_PASSWORD",
 		Message: "password does not meet security requirements, must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
 	}
+
+	// tour days
+	ErrTourDayNotFound = AppError{
+		Code:    "TOUR_DAY_NOT_FOUND",
+		Message: "tour day not found",
+	}
+
+	ErrTourDayCancelled = AppError{
+		Code:    "TOUR_DAY_CANCELLED",
+		Message: "tour day cancelled",
+	}
+
+	// guides
+	ErrGuideNotFound = AppError{
+		Code:    "GUIDE_NOT_FOUND",
+		Message: "guide not found",
+	}
+
+	ErrGuideAlreadyAssigned = AppError{
+		Code:    "GUIDE_ALREADY_ASSIGNED",
+		Message: "guide already assigned to this tour day",
+	}
+
+	ErrGuideNotAssigned = AppError{
+		Code:    "GUIDE_NOT_ASSIGNED",
+		Message: "guide is not assigned to this tour day",
+	}
+
+	ErrCustomerNotFound = AppError{
+		Code:    "CUSTOMER_NOT_FOUND",
+		Message: "customer not found",
+	}
 )
 
 type AppError struct {
