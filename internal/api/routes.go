@@ -1,19 +1,17 @@
 package api
 
 import (
-	"context"
 	"database/sql"
-	"log"
 	"net/http"
 
 	"inariops/internal/modules/auth"
+	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
 	"inariops/internal/modules/users"
 	"inariops/internal/shared/logger"
 	"inariops/internal/shared/response"
-	"inariops/internal/workers"
 
 	"github.com/gorilla/mux"
 )
@@ -30,6 +28,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	userRepo := users.NewRepository(db)
 	reservationRepo := reservations.NewRepository(db)
 	tourDayRepo := tourdays.NewRepository(db)
+	customerRepo := customers.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
@@ -37,12 +36,13 @@ func NewRouter(db *sql.DB) *mux.Router {
 	userService := users.NewService(userRepo, authService, guidesService)
 	reservationService := reservations.NewService(reservationRepo, tourDayRepo)
 	tourDayService := tourdays.NewService(tourDayRepo, guidesRepo)
-
+	customerService := customers.NewService(customerRepo)
 	// Handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := users.NewHandler(userService)
 	reservationHandler := reservations.NewHandler(reservationService)
 	tourDayHandler := tourdays.NewHandler(tourDayService)
+	customerHandler := customers.NewHandler(customerService)
 	guideHandler := guides.NewHandler(guidesService)
 
 	// Health
@@ -144,17 +144,23 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/guides/user/{user_id}", guideHandler.GetGuideByUserID).
 		Methods(http.MethodGet)
 
-	ctx := context.Background()
+	// ======================
+	// Customers
+	// ======================
+	apiV1.HandleFunc("/customers", customerHandler.GetAllCustomers).
+		Methods(http.MethodGet)
 
-	scheduler := workers.NewScheduler()
+	apiV1.HandleFunc("/customers/{id}", customerHandler.GetCustomerByID).
+		Methods(http.MethodGet)
 
-	scheduler.Register(
-		workers.NewGuideAssignmentTimeoutWorker(tourDayService),
-	)
+	apiV1.HandleFunc("/customers", customerHandler.CreateCustomer).
+		Methods(http.MethodPost)
 
-	scheduler.Start(ctx)
+	apiV1.HandleFunc("/customers/{id}", customerHandler.UpdateCustomer).
+		Methods(http.MethodPatch)
 
-	log.Fatal(http.ListenAndServe(":9142", router))
+	apiV1.HandleFunc("/customers/{id}", customerHandler.DeleteCustomer).
+		Methods(http.MethodDelete)
 
 	// Error handlers
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)

@@ -85,6 +85,11 @@ var (
 		Code:    "GUIDE_NOT_ASSIGNED",
 		Message: "guide is not assigned to this tour day",
 	}
+
+	ErrCustomerNotFound = AppError{
+		Code:    "CUSTOMER_NOT_FOUND",
+		Message: "customer not found",
+	}
 )
 
 type AppError struct {
