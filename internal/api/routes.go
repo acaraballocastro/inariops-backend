@@ -7,7 +7,9 @@ import (
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
+	reservationsapp "inariops/internal/modules/tours/application"
 	"inariops/internal/modules/tours/reservations"
+	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"
 	"inariops/internal/modules/users"
 	"inariops/internal/shared/logger"
@@ -29,14 +31,16 @@ func NewRouter(db *sql.DB) *mux.Router {
 	reservationRepo := reservations.NewRepository(db)
 	tourDayRepo := tourdays.NewRepository(db)
 	customerRepo := customers.NewRepository(db)
+	reservatationscustomersRepo := reservationscustomers.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
 	guidesService := guides.NewService(guidesRepo)
 	userService := users.NewService(userRepo, authService, guidesService)
-	reservationService := reservations.NewService(reservationRepo, tourDayRepo)
+	reservationService := reservations.NewService(reservationRepo)
 	tourDayService := tourdays.NewService(tourDayRepo, guidesRepo)
 	customerService := customers.NewService(customerRepo)
+	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo)
 	// Handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := users.NewHandler(userService)
@@ -44,6 +48,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	tourDayHandler := tourdays.NewHandler(tourDayService)
 	customerHandler := customers.NewHandler(customerService)
 	guideHandler := guides.NewHandler(guidesService)
+	reservationappHandler := reservationsapp.NewHandler(reservationUseCase)
 
 	// Health
 	router.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
@@ -96,10 +101,10 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/reservations", reservationHandler.GetAllReservations).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationHandler.GetReservationByCode).
+	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.GetReservationDetailByCode).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations", reservationHandler.CreateReservation).
+	apiV1.HandleFunc("/reservations", reservationappHandler.CreateReservation).
 		Methods(http.MethodPost)
 
 	apiV1.HandleFunc("/reservations/{code}", reservationHandler.UpdateReservation).

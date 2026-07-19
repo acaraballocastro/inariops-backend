@@ -2,8 +2,6 @@ package reservations
 
 import (
 	"inariops/internal/domain"
-	tours "inariops/internal/modules/tours/shared"
-	tourdays "inariops/internal/modules/tours/tour_days"
 	"inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
 	"time"
@@ -12,12 +10,11 @@ import (
 )
 
 type Service struct {
-	repo        *Repository
-	tourDayRepo *tourdays.Repository
+	repo *Repository
 }
 
-func NewService(repo *Repository, tourDayRepo *tourdays.Repository) *Service {
-	return &Service{repo: repo, tourDayRepo: tourDayRepo}
+func NewService(repo *Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) GetAllReservations() ([]Reservation, error) {
@@ -53,32 +50,10 @@ func (s *Service) CreateReservation(reservation Reservation) error {
 
 	logger.Info("CreateReservation: creating reservation with ID %v", reservation)
 
-	err := s.repo.CreateReservation(reservation)
+	_, err := s.repo.CreateReservation(reservation)
 	if err != nil {
 		logger.Error("CreateReservation: failed to create reservation: %v", err)
 		return err
-	}
-	days := int(reservation.EndDate.Sub(reservation.StartDate).Hours()/24) + 1
-
-	for i := 0; i < days; i++ {
-		tourDay := tours.TourDay{
-			ID:            uuid.New().String(),
-			ReservationID: reservation.ID,
-			Title:         reservation.Title,
-			StartDateTime: reservation.StartDate.Add(time.Duration(i) * 24 * time.Hour),
-			PeopleCount:   reservation.TotalPeopleCount,
-			Duration:      nil,
-			Status:        domain.RESERVATION_PENDING_ASSIGNMENT,
-			VoucherStatus: domain.VOUCHER_NOT_GENERATED,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
-		}
-
-		err := s.tourDayRepo.CreateTourDay(tourDay)
-		if err != nil {
-			logger.Error("CreateReservation: failed to create tour day for reservation %s: %v", reservation.ID, err)
-			return err
-		}
 	}
 
 	return nil
