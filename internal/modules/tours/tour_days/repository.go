@@ -206,6 +206,28 @@ func (r *Repository) AssignGuide(tourDayID string, guideID string) error {
 	return err
 }
 
+func (r *Repository) AssignGuideToMultipleTourDays(tourDayIDs []string, guideID string) error {
+	for _, tourDayID := range tourDayIDs {
+		_, err := r.db.Exec(`
+			UPDATE tour_days SET
+				guide_id = $1,
+				status = $2,
+				updated_at = $3
+			WHERE id = $4
+		`,
+			guideID,
+			domain.RESERVATION_GUIDE_PREASSIGNED,
+			time.Now(),
+			tourDayID,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *Repository) UnassignGuide(tourDayID string) error {
 	_, err := r.db.Exec(`
 		UPDATE tour_days SET
@@ -257,5 +279,15 @@ func (r *Repository) UpdateTourDayStatus(tourDayID string, status domain.Reserva
 		time.Now(),
 		tourDayID,
 	)
+	return err
+}
+
+func (r *Repository) DeleteTourDaysByReservationID(reservationID string) error {
+	_, err := r.db.Exec(`
+		UPDATE tour_days SET
+			status = $1,
+			updated_at = $2
+		WHERE reservation_id = $3
+	`, domain.RESERVATION_CANCELLED, time.Now(), reservationID)
 	return err
 }

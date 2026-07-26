@@ -7,7 +7,10 @@ import (
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
+	reservationsapp "inariops/internal/modules/tours/application"
+	tourdaysapp "inariops/internal/modules/tours/application/tour_days"
 	"inariops/internal/modules/tours/reservations"
+	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"
 	"inariops/internal/modules/users"
 	"inariops/internal/shared/logger"
@@ -29,14 +32,23 @@ func NewRouter(db *sql.DB) *mux.Router {
 	reservationRepo := reservations.NewRepository(db)
 	tourDayRepo := tourdays.NewRepository(db)
 	customerRepo := customers.NewRepository(db)
+	reservatationscustomersRepo := reservationscustomers.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
 	guidesService := guides.NewService(guidesRepo)
+
+	//TODO: Check if we need to pass guidesService to userService, MAYBE IMPLEMENTATION OF A APPLICATION SERVICE FOR USERS
 	userService := users.NewService(userRepo, authService, guidesService)
-	reservationService := reservations.NewService(reservationRepo, tourDayRepo)
-	tourDayService := tourdays.NewService(tourDayRepo, guidesRepo)
+
+	reservationService := reservations.NewService(reservationRepo)
+	tourDayService := tourdays.NewService(tourDayRepo)
 	customerService := customers.NewService(customerRepo)
+
+	// Application Services
+	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo)
+	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo)
+
 	// Handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := users.NewHandler(userService)
@@ -44,6 +56,10 @@ func NewRouter(db *sql.DB) *mux.Router {
 	tourDayHandler := tourdays.NewHandler(tourDayService)
 	customerHandler := customers.NewHandler(customerService)
 	guideHandler := guides.NewHandler(guidesService)
+
+	// Application Handlers
+	reservationappHandler := reservationsapp.NewHandler(reservationUseCase)
+	tourDayAppHandler := tourdaysapp.NewHandler(tourdayUseCase)
 
 	// Health
 	router.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
@@ -99,16 +115,39 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/reservations/{code}", reservationHandler.GetReservationByCode).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations", reservationHandler.CreateReservation).
+	apiV1.HandleFunc("/reservations/{code}/customers", reservationappHandler.GetCustomersByReservationCode).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/reservations", reservationappHandler.CreateReservation).
 		Methods(http.MethodPost)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationHandler.UpdateReservation).
+	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.UpdateReservation).
 		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.DeleteReservation).
+		Methods(http.MethodDelete)
+
+		// =====================
+		// TOUR DAYS
+		// =====================
 
 	// =====================
 	// TOUR DAYS
 	// =====================
 
+	// Specific routes first
+	apiV1.HandleFunc("/tour-days/assign-guide", tourDayAppHandler.AssignGuide).
+		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/tour-days/unassign-guide", tourDayAppHandler.UnassignGuide).
+		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc(
+		"/tour-days/by-reservation/{reservation_id}",
+		tourDayHandler.GetTourDaysByReservationID,
+	).Methods(http.MethodGet)
+
+	// Generic routes afterwards
 	apiV1.HandleFunc("/tour-days", tourDayHandler.CreateTourDay).
 		Methods(http.MethodPost)
 
@@ -120,17 +159,6 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	apiV1.HandleFunc("/tour-days/{id}", tourDayHandler.CancelTourDay).
 		Methods(http.MethodDelete)
-
-	apiV1.HandleFunc("/tour-days/{id}/assign/{guide_id}", tourDayHandler.AssignGuide).
-		Methods(http.MethodPatch)
-
-	apiV1.HandleFunc("/tour-days/{id}/unassign/{guide_id}", tourDayHandler.UnassignGuide).
-		Methods(http.MethodPatch)
-
-	apiV1.HandleFunc(
-		"/tour-days/by-reservation/{reservation_id}",
-		tourDayHandler.GetTourDaysByReservationID,
-	).Methods(http.MethodGet)
 
 	// =====================
 	// GUIDES

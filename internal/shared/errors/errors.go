@@ -59,6 +59,11 @@ var (
 		Message: "password does not meet security requirements, must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
 	}
 
+	ErrFailedToUpdateReservation = AppError{
+		Code:    "FAILED_TO_UPDATE_RESERVATION",
+		Message: "failed to update reservation",
+	}
+
 	// tour days
 	ErrTourDayNotFound = AppError{
 		Code:    "TOUR_DAY_NOT_FOUND",
