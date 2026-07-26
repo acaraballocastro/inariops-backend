@@ -16,8 +16,8 @@ func NewScheduler() *Scheduler {
 	}
 }
 
-func (s *Scheduler) Register(worker Worker) {
-	s.workers = append(s.workers, worker)
+func (s *Scheduler) Register(workers ...Worker) {
+	s.workers = append(s.workers, workers...)
 }
 
 func (s *Scheduler) Start(ctx context.Context) {

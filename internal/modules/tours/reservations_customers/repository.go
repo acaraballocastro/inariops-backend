@@ -26,7 +26,7 @@ func (r *Repository) AddCustomerToReservation(reservationID string, customerIDs 
 
 	for _, customerID := range customerIDs {
 		_, err = tx.Exec(`
-			INSERT INTO reservations_customers (reservation_id, customer_id)
+			INSERT INTO reservation_customers (reservation_id, customer_id)
 			VALUES ($1, $2)
 			ON CONFLICT (reservation_id, customer_id) DO NOTHING
 		`, reservationID, customerID)
@@ -40,7 +40,7 @@ func (r *Repository) AddCustomerToReservation(reservationID string, customerIDs 
 
 func (r *Repository) RemoveCustomerFromReservation(reservationID string, customerID string) error {
 	_, err := r.db.Exec(`
-		DELETE FROM reservations_customers
+		DELETE FROM reservation_customers
 		WHERE reservation_id = $1 AND customer_id = $2
 	`, reservationID, customerID)
 	return err
@@ -49,7 +49,7 @@ func (r *Repository) RemoveCustomerFromReservation(reservationID string, custome
 func (r *Repository) GetCustomersByReservationID(reservationID string) ([]string, error) {
 	rows, err := r.db.Query(`
 		SELECT customer_id
-		FROM reservations_customers
+		FROM reservation_customers
 		WHERE reservation_id = $1
 	`, reservationID)
 	if err != nil {
@@ -71,4 +71,19 @@ func (r *Repository) GetCustomersByReservationID(reservationID string) ([]string
 	}
 
 	return customerIDs, nil
+}
+
+func (r *Repository) IsCustomerInReservation(reservationID string, customerID string) bool {
+	var exists bool
+	err := r.db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM reservation_customers
+			WHERE reservation_id = $1 AND customer_id = $2
+		)
+	`, reservationID, customerID).Scan(&exists)
+	if err != nil {
+		return false
+	}
+	return exists
 }

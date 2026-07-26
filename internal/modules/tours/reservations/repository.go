@@ -2,6 +2,7 @@ package reservations
 
 import (
 	"database/sql"
+	"inariops/internal/domain"
 	"inariops/internal/shared/errors"
 )
 
@@ -13,7 +14,7 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateReservation(reservation Reservation) error {
+func (r *Repository) CreateReservation(reservation Reservation) (Reservation, error) {
 	_, err := r.db.Exec(`
 			INSERT INTO reservations (
 				id, title, description, status, quote_number, file_number, agency_id, total_people_count, start_date,
@@ -29,7 +30,7 @@ func (r *Repository) CreateReservation(reservation Reservation) error {
 		reservation.EndDate, reservation.SignatureStatus, reservation.VoucherStatus, reservation.CreatedAt, reservation.UpdatedAt,
 	)
 
-	return err
+	return reservation, err
 }
 
 func (r *Repository) GetReservationByCode(code string) (Reservation, error) {
@@ -138,9 +139,11 @@ func (r *Repository) UpdateReservation(reservation Reservation) error {
 
 func (r *Repository) DeleteReservation(code string) error {
 	result, err := r.db.Exec(`
-		DELETE FROM reservations
-		WHERE code = $1
-	`, code)
+		UPDATE reservations
+		SET status = $1,
+			updated_at = NOW()
+		WHERE code = $2
+	`, domain.RESERVATION_CANCELLED, code)
 
 	if err != nil {
 		return err
