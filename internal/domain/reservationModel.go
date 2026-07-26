@@ -3,6 +3,7 @@ package domain
 type ReservationStatus string
 
 const (
+	RESERVATION_PENDING                 ReservationStatus = "PENDING"
 	RESERVATION_PENDING_ASSIGNMENT      ReservationStatus = "PENDING_ASSIGNMENT"
 	RESERVATION_GUIDE_PREASSIGNED       ReservationStatus = "GUIDE_PREASSIGNED"
 	RESERVATION_GUIDE_CONFIRMED         ReservationStatus = "GUIDE_CONFIRMED"

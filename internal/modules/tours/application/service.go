@@ -415,3 +415,43 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 	}
 	return nil
 }
+
+//
+
+func (s *Service) SyncReservationStatus(reservationCode string) error {
+	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
+	if err != nil {
+		logger.Error("SyncReservationStatus: failed to get reservation for code %s: %v", reservationCode, err)
+		return err
+	}
+
+	tourDays, err := s.tourDaysRepo.GetTourDaysByReservationID(reservation.ID)
+	if err != nil {
+		logger.Error("SyncReservationStatus: failed to get tour days for reservation ID %s: %v", reservation.ID, err)
+		return err
+	}
+
+	newStatus := domain.RESERVATION_PENDING_ASSIGNMENT
+	for _, tourDay := range tourDays {
+		if tourDay.Status == domain.RESERVATION_GUIDE_CONFIRMED {
+			newStatus = domain.RESERVATION_GUIDE_CONFIRMED
+			break
+		} else if tourDay.Status == domain.RESERVATION_GUIDE_PREASSIGNED && newStatus != domain.RESERVATION_GUIDE_CONFIRMED {
+			newStatus = domain.RESERVATION_GUIDE_PREASSIGNED
+		} else if tourDay.Status == domain.RESERVATION_PENDING_ASSIGNMENT && newStatus != domain.RESERVATION_GUIDE_CONFIRMED && newStatus != domain.RESERVATION_GUIDE_PREASSIGNED {
+			newStatus = domain.RESERVATION_PENDING_ASSIGNMENT
+		}
+	}
+
+	if reservation.Status != newStatus {
+		reservation.Status = newStatus
+		reservation.UpdatedAt = time.Now()
+		err = s.reservationsRepo.UpdateReservation(reservation)
+		if err != nil {
+			logger.Error("SyncReservationStatus: failed to update reservation status for code %s: %v", reservationCode, err)
+			return err
+		}
+	}
+
+	return nil
+}
