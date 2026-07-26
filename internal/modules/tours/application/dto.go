@@ -31,3 +31,16 @@ type CustomerReservationRequest struct {
 	Email          string  `json:"email"`
 	Age            int     `json:"age"`
 }
+
+type UpdateReservationRequest struct {
+	Code             string                       `json:"code"`
+	Title            *string                      `json:"title"`
+	Description      *string                      `json:"description"`
+	AgencyID         *string                      `json:"agency_id"`
+	TotalPeopleCount *int                         `json:"total_people_count"`
+	QuoteNumber      *string                      `json:"quote_number"`
+	FileNumber       *string                      `json:"file_number"`
+	StartDate        time.Time                    `json:"start_date"`
+	EndDate          time.Time                    `json:"end_date"`
+	Customers        []CustomerReservationRequest `json:"customers"`
+}

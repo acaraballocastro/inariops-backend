@@ -101,14 +101,20 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/reservations", reservationHandler.GetAllReservations).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.GetReservationDetailByCode).
+	apiV1.HandleFunc("/reservations/{code}", reservationHandler.GetReservationByCode).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/reservations/{code}/customers", reservationappHandler.GetCustomersByReservationCode).
 		Methods(http.MethodGet)
 
 	apiV1.HandleFunc("/reservations", reservationappHandler.CreateReservation).
 		Methods(http.MethodPost)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationHandler.UpdateReservation).
+	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.UpdateReservation).
 		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.DeleteReservation).
+		Methods(http.MethodDelete)
 
 	// =====================
 	// TOUR DAYS
