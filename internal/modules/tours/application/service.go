@@ -155,7 +155,6 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 	}
 
 	createdReservation, err := s.reservationsRepo.CreateReservation(reservation)
-	logger.Info("CreateReservation: created reservation with ID %v", createdReservation.ID)
 	if err != nil {
 		logger.Error("CreateReservation: failed to create reservation: %v", err)
 		return ReservationDetail{}, err
@@ -181,7 +180,6 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 		}
 
 		err := s.tourDaysRepo.CreateTourDay(tourDay)
-		logger.Info("CreateReservation: created tour day with ID %v for reservation ID %v", tourDay.ID, createdReservation.ID)
 		if err != nil {
 			logger.Error("CreateReservation: failed to create tour day for reservation ID %v: %v", createdReservation.ID, err)
 			return ReservationDetail{}, err
@@ -192,7 +190,7 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 	var customersList []customers.Customer
 	var customerIDs []string
 	for _, customerRequest := range reservationRequest.Customers {
-		if customerRequest.ID == nil {
+		if customerRequest.ID == nil || strings.TrimSpace(*customerRequest.ID) == "" {
 			customer := customers.Customer{
 				ID:             uuid.New().String(),
 				FullName:       customerRequest.FullName,
@@ -202,8 +200,8 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 				Age:            customerRequest.Age,
 				CreatedAt:      time.Now(),
 			}
+
 			err := s.customersRepo.CreateCustomer(customer)
-			logger.Info("CreateReservation: created customer with ID %v", customer.ID)
 			if err != nil {
 				logger.Error("CreateReservation: failed to create customer: %v", err)
 				return ReservationDetail{}, err
@@ -216,12 +214,12 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 			if err != nil {
 				return ReservationDetail{}, err
 			}
+
 			customersList = append(customersList, customer)
 			customerIDs = append(customerIDs, customer.ID)
 		}
 	}
 	err = s.reservationCustomersRepo.AddCustomerToReservation(createdReservation.ID, customerIDs)
-	logger.Info("CreateReservation: added customers to reservation ID %v", createdReservation.ID)
 
 	if err != nil {
 		logger.Error("CreateReservation: failed to add customers to reservation ID %v: %v", createdReservation.ID, err)
