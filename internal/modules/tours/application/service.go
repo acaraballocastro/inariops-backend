@@ -191,6 +191,12 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 	var customerIDs []string
 	for _, customerRequest := range reservationRequest.Customers {
 		if customerRequest.ID == nil || strings.TrimSpace(*customerRequest.ID) == "" {
+			if customer, err := s.customersRepo.GetCustomerByEmail(customerRequest.Email); err == nil {
+				customersList = append(customersList, customer)
+				customerIDs = append(customerIDs, customer.ID)
+				continue
+			}
+
 			customer := customers.Customer{
 				ID:             uuid.New().String(),
 				FullName:       customerRequest.FullName,
@@ -338,6 +344,10 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 		var customerID string
 
 		if customerRequest.ID == nil || strings.TrimSpace(*customerRequest.ID) == "" {
+			if customer, err := s.customersRepo.GetCustomerByEmail(customerRequest.Email); err == nil {
+				customerID = customer.ID
+				continue
+			}
 			customer := customers.Customer{
 				ID:             uuid.New().String(),
 				FullName:       customerRequest.FullName,

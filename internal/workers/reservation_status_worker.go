@@ -50,7 +50,7 @@ func (w *ReservationStatusWorker) Run(
 	for _, reservation := range reservations {
 
 		err := w.service.SyncReservationStatus(
-			reservation.ID,
+			*reservation.Code,
 		)
 
 		if err != nil {

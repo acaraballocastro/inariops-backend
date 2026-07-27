@@ -2,6 +2,7 @@ package tourdaysapp
 
 import (
 	"encoding/json"
+	"inariops/internal/shared/logger"
 	"net/http"
 )
 
@@ -40,7 +41,8 @@ func (h *Handler) UnassignGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.service.UnassignGuide(request.TourDayIDs)
+	err := h.service.UnassignGuide(request.TourDayIDs, request.GuideID)
+	logger.Info("error %s", err)
 	if err != nil {
 		http.Error(w, "failed to unassign guide", http.StatusInternalServerError)
 		return

@@ -5,15 +5,15 @@ import (
 	"time"
 
 	"inariops/internal/domain"
-	tourdays "inariops/internal/modules/tours/tour_days"
+	tourdaysapp "inariops/internal/modules/tours/application/tour_days"
 	"inariops/internal/shared/logger"
 )
 
 type GuideAssignmentTimeoutWorker struct {
-	service *tourdays.Service
+	service *tourdaysapp.Service
 }
 
-func NewGuideAssignmentTimeoutWorker(service *tourdays.Service) *GuideAssignmentTimeoutWorker {
+func NewGuideAssignmentTimeoutWorker(service *tourdaysapp.Service) *GuideAssignmentTimeoutWorker {
 	return &GuideAssignmentTimeoutWorker{
 		service: service,
 	}
