@@ -160,11 +160,12 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 		return ReservationDetail{}, err
 	}
 
-	daysRange := int(reservation.EndDate.Sub(reservation.StartDate).Hours()/24) + 1
+	daysRange := 0
+	tourDays := []tours.TourDay{}
+	if createdReservation.StartDate == createdReservation.EndDate {
+		daysRange = 1
 
-	var tourDays []tours.TourDay
-	for i := 0; i < daysRange; i++ {
-		day := reservation.StartDate.AddDate(0, 0, i)
+		day := createdReservation.StartDate
 
 		tourDay := tours.TourDay{
 			ID:            uuid.New().String(),
@@ -185,6 +186,33 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 			return ReservationDetail{}, err
 		}
 		tourDays = append(tourDays, tourDay)
+	} else {
+		daysRange = int(reservation.EndDate.Sub(reservation.StartDate).Hours()/24) + 1
+
+		var tourDays []tours.TourDay
+		for i := 0; i < daysRange; i++ {
+			day := reservation.StartDate.AddDate(0, 0, i)
+
+			tourDay := tours.TourDay{
+				ID:            uuid.New().String(),
+				ReservationID: createdReservation.ID,
+				Title:         createdReservation.Title,
+				StartDateTime: day,
+				PeopleCount:   createdReservation.TotalPeopleCount,
+				Duration:      nil,
+				Status:        domain.RESERVATION_PENDING_ASSIGNMENT,
+				VoucherStatus: domain.VOUCHER_NOT_GENERATED,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+
+			err := s.tourDaysRepo.CreateTourDay(tourDay)
+			if err != nil {
+				logger.Error("CreateReservation: failed to create tour day for reservation ID %v: %v", createdReservation.ID, err)
+				return ReservationDetail{}, err
+			}
+			tourDays = append(tourDays, tourDay)
+		}
 	}
 
 	var customersList []customers.Customer
