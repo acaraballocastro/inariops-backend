@@ -33,6 +33,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	tourDayRepo := tourdays.NewRepository(db)
 	customerRepo := customers.NewRepository(db)
 	reservatationscustomersRepo := reservationscustomers.NewRepository(db)
+	assigmentRepo := tourdaysapp.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
@@ -47,7 +48,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	// Application Services
 	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo)
-	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo)
+	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo, assigmentRepo)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)

@@ -157,3 +157,23 @@ func (r *Repository) SearchCustomers(term string) ([]Customer, error) {
 
 	return customers, nil
 }
+
+func (r *Repository) GetCustomerByEmail(email string) (Customer, error) {
+	var customer Customer
+
+	err := r.db.QueryRow(`
+		SELECT id, full_name, document_number, phone, email, age, created_at
+		FROM customers
+		WHERE email = $1
+	`, email).Scan(
+		&customer.ID,
+		&customer.FullName,
+		&customer.DocumentNumber,
+		&customer.Phone,
+		&customer.Email,
+		&customer.Age,
+		&customer.CreatedAt,
+	)
+
+	return customer, err
+}
