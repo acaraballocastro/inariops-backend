@@ -1,7 +1,6 @@
 package reservationsapp
 
 import (
-	"fmt"
 	"inariops/internal/domain"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/tours/reservations"
@@ -68,74 +67,6 @@ func (s *Service) GetReservationDetailByCode(reservationCode string) (Reservatio
 	detail.TourDays = tourDays
 
 	return detail, nil
-}
-
-func (s *Service) AddCustomerToReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
-
-	var customersList []string
-	for _, customerID := range customerIDs {
-		customer, err := s.customersRepo.GetCustomerByID(customerID)
-		if err != nil {
-			return err
-		}
-
-		if s.reservationCustomersRepo.IsCustomerInReservation(reservation.ID, customer.ID) {
-			return fmt.Errorf("customer with ID %s is already in the reservation", customer.ID)
-		}
-
-		customersList = append(customersList, customer.ID)
-	}
-
-	err = s.reservationCustomersRepo.AddCustomerToReservation(reservation.ID, customersList)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) RemoveCustomersFromReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
-
-	for _, customerID := range customerIDs {
-		err := s.reservationCustomersRepo.RemoveCustomerFromReservation(reservation.ID, customerID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *Service) GetCustomersByReservationCode(reservationCode string) ([]customers.Customer, error) {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return nil, err
-	}
-
-	customerIDs, err := s.reservationCustomersRepo.GetCustomersByReservationID(reservation.ID)
-
-	if len(customerIDs) == 0 {
-		return []customers.Customer{}, nil
-	}
-
-	var customersList []customers.Customer
-	for _, id := range customerIDs {
-		customer, err := s.customersRepo.GetCustomerByID(id)
-		if err != nil {
-			return nil, err
-		}
-		customersList = append(customersList, customer)
-	}
-
-	return customersList, nil
 }
 
 func (s *Service) CreateReservation(reservationRequest CreateReservationRequest) (ReservationDetail, error) {
@@ -342,7 +273,22 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 		return errors.ErrFailedToUpdateReservation
 	}
 
-	existingCustomers, err := s.GetCustomersByReservationCode(reservation.Code)
+	existingCustomersID, err := s.reservationCustomersRepo.GetCustomersByReservationID(oldReservation.ID)
+
+	existingCustomers := []customers.Customer{}
+	for _, customerID := range existingCustomersID {
+		customer, err := s.customersRepo.GetCustomerByID(customerID)
+		if err != nil {
+			logger.Error(
+				"updateReservation: failed to get customer %s for reservation %s: %v",
+				customerID,
+				reservation.Code,
+				err,
+			)
+			return errors.ErrFailedToUpdateReservation
+		}
+		existingCustomers = append(existingCustomers, customer)
+	}
 
 	if len(reservation.Customers) == 0 {
 		for _, customer := range existingCustomers {

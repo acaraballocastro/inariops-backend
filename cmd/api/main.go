@@ -8,10 +8,10 @@ import (
 	"inariops/internal/api"
 	"inariops/internal/db"
 
+	reservationsapp "inariops/internal/application/reservations"
+	tourdaysapp "inariops/internal/application/tour_days"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
-	reservationsapp "inariops/internal/modules/tours/application"
-	tourdaysapp "inariops/internal/modules/tours/application/tour_days"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"

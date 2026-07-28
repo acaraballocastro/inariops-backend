@@ -95,6 +95,11 @@ var (
 		Code:    "CUSTOMER_NOT_FOUND",
 		Message: "customer not found",
 	}
+
+	ErrExistingAgency = AppError{
+		Code:    "EXISTING_AGENCY",
+		Message: "agency already exists",
+	}
 )
 
 type AppError struct {

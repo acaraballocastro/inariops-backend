@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	reservationsapp "inariops/internal/application/reservations"
 	"inariops/internal/domain"
-	reservationsapp "inariops/internal/modules/tours/application"
 	reservations "inariops/internal/modules/tours/reservations"
 )
 
