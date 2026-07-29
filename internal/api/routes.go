@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 
+	reservationcustomersapp "inariops/internal/application/reservation_customers"
+	reservationsapp "inariops/internal/application/reservations"
+	tourdaysapp "inariops/internal/application/tour_days"
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
-	reservationsapp "inariops/internal/modules/tours/application"
-	tourdaysapp "inariops/internal/modules/tours/application/tour_days"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -33,6 +34,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	tourDayRepo := tourdays.NewRepository(db)
 	customerRepo := customers.NewRepository(db)
 	reservatationscustomersRepo := reservationscustomers.NewRepository(db)
+	assigmentRepo := tourdaysapp.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
@@ -47,7 +49,8 @@ func NewRouter(db *sql.DB) *mux.Router {
 
 	// Application Services
 	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo)
-	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo)
+	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo, assigmentRepo)
+	reservationCustomerUseCase := reservationcustomersapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo)
 
 	// Handlers
 	authHandler := auth.NewHandler(authService)
@@ -58,8 +61,9 @@ func NewRouter(db *sql.DB) *mux.Router {
 	guideHandler := guides.NewHandler(guidesService)
 
 	// Application Handlers
-	reservationappHandler := reservationsapp.NewHandler(reservationUseCase)
+	reservationAppHandler := reservationsapp.NewHandler(reservationUseCase)
 	tourDayAppHandler := tourdaysapp.NewHandler(tourdayUseCase)
+	reservationCustomerAppHandler := reservationcustomersapp.NewHandler(reservationCustomerUseCase)
 
 	// Health
 	router.HandleFunc("/health", healthCheck).Methods(http.MethodGet)
@@ -115,16 +119,16 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/reservations/{code}", reservationHandler.GetReservationByCode).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations/{code}/customers", reservationappHandler.GetCustomersByReservationCode).
+	apiV1.HandleFunc("/reservations/{code}/customers", reservationCustomerAppHandler.GetCustomersByReservationCode).
 		Methods(http.MethodGet)
 
-	apiV1.HandleFunc("/reservations", reservationappHandler.CreateReservation).
+	apiV1.HandleFunc("/reservations", reservationAppHandler.CreateReservation).
 		Methods(http.MethodPost)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.UpdateReservation).
+	apiV1.HandleFunc("/reservations/{code}", reservationAppHandler.UpdateReservation).
 		Methods(http.MethodPatch)
 
-	apiV1.HandleFunc("/reservations/{code}", reservationappHandler.DeleteReservation).
+	apiV1.HandleFunc("/reservations/{code}", reservationAppHandler.DeleteReservation).
 		Methods(http.MethodDelete)
 
 		// =====================

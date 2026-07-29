@@ -8,8 +8,10 @@ import (
 	"inariops/internal/api"
 	"inariops/internal/db"
 
+	reservationsapp "inariops/internal/application/reservations"
+	tourdaysapp "inariops/internal/application/tour_days"
 	"inariops/internal/modules/customers"
-	reservationsapp "inariops/internal/modules/tours/application"
+	"inariops/internal/modules/guides"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -40,7 +42,9 @@ func main() {
 	// Repositories
 	// =====================
 
+	tourDayappRepo := tourdaysapp.NewRepository(dbConn)
 	tourDayRepo := tourdays.NewRepository(dbConn)
+	guideRepo := guides.NewRepository(dbConn)
 
 	reservationRepo := reservations.NewRepository(dbConn)
 
@@ -52,8 +56,10 @@ func main() {
 	// Services
 	// =====================
 
-	tourDayService := tourdays.NewService(
+	tourDayAppService := tourdaysapp.NewService(
 		tourDayRepo,
+		guideRepo,
+		tourDayappRepo,
 	)
 
 	reservationAppService := reservationsapp.NewService(
@@ -77,7 +83,7 @@ func main() {
 
 	scheduler.Register(
 		workers.NewGuideAssignmentTimeoutWorker(
-			tourDayService,
+			tourDayAppService,
 		),
 
 		workers.NewReservationStatusWorker(
