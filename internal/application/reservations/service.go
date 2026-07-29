@@ -3,7 +3,9 @@ package reservationsapp
 import (
 	"inariops/internal/domain"
 	"inariops/internal/modules/customers"
+	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
+
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tours "inariops/internal/modules/tours/shared"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -20,6 +22,7 @@ type Service struct {
 	customersRepo            *customers.Repository
 	reservationCustomersRepo *reservationscustomers.Repository
 	tourDaysRepo             *tourdays.Repository
+	agenciesRepo             *agencies.Repository
 }
 
 func NewService(
@@ -27,12 +30,14 @@ func NewService(
 	customersRepo *customers.Repository,
 	reservationCustomersRepo *reservationscustomers.Repository,
 	tourDaysRepo *tourdays.Repository,
+	agenciesRepo *agencies.Repository,
 ) *Service {
 	return &Service{
 		reservationsRepo:         reservationsRepo,
 		customersRepo:            customersRepo,
 		reservationCustomersRepo: reservationCustomersRepo,
 		tourDaysRepo:             tourDaysRepo,
+		agenciesRepo:             agenciesRepo,
 	}
 }
 
@@ -83,6 +88,14 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 		SignatureStatus:  domain.SIGNATURE_NOT_SENT,
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
+	}
+
+	if reservation.AgencyID != nil && strings.TrimSpace(*reservation.AgencyID) != "" {
+		_, err := s.agenciesRepo.GetAgencyByID(*reservation.AgencyID)
+		if err != nil {
+			logger.Error("CreateReservation: failed to get agency for reservation: %v", err)
+			return ReservationDetail{}, err
+		}
 	}
 
 	createdReservation, err := s.reservationsRepo.CreateReservation(reservation)
@@ -239,6 +252,14 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 	if err != nil {
 		logger.Error("updateReservation: failed to retrieve reservation with code %s: %v", reservation.Code, err)
 		return errors.ErrReservationNotFound
+	}
+
+	if reservation.AgencyID != nil && strings.TrimSpace(*reservation.AgencyID) != "" {
+		_, err := s.agenciesRepo.GetAgencyByID(*reservation.AgencyID)
+		if err != nil {
+			logger.Error("updateReservation: failed to get agency for reservation: %v", err)
+			return errors.ErrFailedToUpdateReservation
+		}
 	}
 
 	if reservation.Title != nil {
