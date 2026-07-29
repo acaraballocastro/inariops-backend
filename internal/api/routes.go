@@ -10,6 +10,7 @@ import (
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
+	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -35,6 +36,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	customerRepo := customers.NewRepository(db)
 	reservatationscustomersRepo := reservationscustomers.NewRepository(db)
 	assigmentRepo := tourdaysapp.NewRepository(db)
+	agencyRepo := agencies.NewRepository(db)
 
 	// Services
 	authService := auth.NewService(authRepo)
@@ -46,9 +48,10 @@ func NewRouter(db *sql.DB) *mux.Router {
 	reservationService := reservations.NewService(reservationRepo)
 	tourDayService := tourdays.NewService(tourDayRepo)
 	customerService := customers.NewService(customerRepo)
+	agencyService := agencies.NewService(agencyRepo)
 
 	// Application Services
-	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo)
+	reservationUseCase := reservationsapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo, tourDayRepo, agencyRepo)
 	tourdayUseCase := tourdaysapp.NewService(tourDayRepo, guidesRepo, assigmentRepo)
 	reservationCustomerUseCase := reservationcustomersapp.NewService(reservationRepo, customerRepo, reservatationscustomersRepo)
 
@@ -59,6 +62,7 @@ func NewRouter(db *sql.DB) *mux.Router {
 	tourDayHandler := tourdays.NewHandler(tourDayService)
 	customerHandler := customers.NewHandler(customerService)
 	guideHandler := guides.NewHandler(guidesService)
+	agencyHandler := agencies.NewHandler(agencyService)
 
 	// Application Handlers
 	reservationAppHandler := reservationsapp.NewHandler(reservationUseCase)
@@ -131,10 +135,6 @@ func NewRouter(db *sql.DB) *mux.Router {
 	apiV1.HandleFunc("/reservations/{code}", reservationAppHandler.DeleteReservation).
 		Methods(http.MethodDelete)
 
-		// =====================
-		// TOUR DAYS
-		// =====================
-
 	// =====================
 	// TOUR DAYS
 	// =====================
@@ -192,6 +192,24 @@ func NewRouter(db *sql.DB) *mux.Router {
 		Methods(http.MethodPatch)
 
 	apiV1.HandleFunc("/customers/{id}", customerHandler.DeleteCustomer).
+		Methods(http.MethodDelete)
+
+	// ======================
+	// Agencies
+	// ======================
+	apiV1.HandleFunc("/agencies", agencyHandler.ListAgencies).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/agencies/{id}", agencyHandler.GetAgencyByID).
+		Methods(http.MethodGet)
+
+	apiV1.HandleFunc("/agencies", agencyHandler.CreateAgency).
+		Methods(http.MethodPost)
+
+	apiV1.HandleFunc("/agencies/{id}", agencyHandler.UpdateAgency).
+		Methods(http.MethodPatch)
+
+	apiV1.HandleFunc("/agencies/{id}", agencyHandler.DeleteAgency).
 		Methods(http.MethodDelete)
 
 	// Error handlers
