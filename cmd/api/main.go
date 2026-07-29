@@ -14,23 +14,48 @@ import (
 
 func main() {
 
+	// =====================
+	// Database
+	// =====================
+
 	dbConn := db.Connect()
+
+	// =====================
+	// Application
+	// =====================
 
 	app := bootstrap.New(dbConn)
 
-	router := api.NewRouter(dbConn)
+	// =====================
+	// Router
+	// =====================
+
+	router := api.NewRouter(app.Handlers)
 
 	router.Use(middleware.CORS)
 	router.Use(logger.Logging)
 
+	// =====================
+	// Background Workers
+	// =====================
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	app.Start(ctx)
+	app.StartWorkers(ctx)
+
+	// =====================
+	// HTTP Server
+	// =====================
 
 	log.Println("InariOps running on :9142")
 
-	if err := http.ListenAndServe(":9142", router); err != nil {
+	server := &http.Server{
+		Addr:    ":9142",
+		Handler: router,
+	}
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
