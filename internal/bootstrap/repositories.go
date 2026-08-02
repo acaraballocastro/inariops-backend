@@ -8,6 +8,7 @@ import (
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
+	"inariops/internal/modules/guides/languages"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
@@ -33,6 +34,8 @@ type Repositories struct {
 	Customer *customers.Repository
 
 	Agency *agencies.Repository
+
+	Language *languages.Repository
 }
 
 func newRepositories(db *sql.DB) *Repositories {
@@ -56,5 +59,7 @@ func newRepositories(db *sql.DB) *Repositories {
 		Customer: customers.NewRepository(db),
 
 		Agency: agencies.NewRepository(db),
+
+		Language: languages.NewRepository(db),
 	}
 }

@@ -30,6 +30,7 @@ func NewRouter(
 	registerGuideRoutes(api, handlers)
 	registerCustomerRoutes(api, handlers)
 	registerAgencyRoutes(api, handlers)
+	registerLanguageRoutes(api, handlers)
 
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
 	router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowedHandler)
