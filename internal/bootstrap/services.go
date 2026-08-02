@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	guidesapp "inariops/internal/application/guides"
 	reservationcustomersapp "inariops/internal/application/reservation_customers"
 	reservationsapp "inariops/internal/application/reservations"
 	tourdaysapp "inariops/internal/application/tour_days"
@@ -8,6 +9,7 @@ import (
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
+	"inariops/internal/modules/guides/languages"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -29,11 +31,15 @@ type Services struct {
 
 	Agency *agencies.Service
 
+	Language *languages.Service
+
 	ReservationApplication *reservationsapp.Service
 
 	ReservationCustomerApplication *reservationcustomersapp.Service
 
 	TourDayApplication *tourdaysapp.Service
+
+	GuideApplication *guidesapp.Service
 }
 
 func newServices(
@@ -48,15 +54,17 @@ func newServices(
 		repositories.Guide,
 	)
 
+	userService := users.NewService(
+		repositories.User,
+		authService,
+		guideService,
+	)
+
 	return &Services{
 
 		Auth: authService,
 
-		User: users.NewService(
-			repositories.User,
-			authService,
-			guideService,
-		),
+		User: userService,
 
 		Guide: guideService,
 
@@ -76,6 +84,11 @@ func newServices(
 			repositories.Agency,
 		),
 
+		Language: languages.NewService(
+			repositories.Language,
+		),
+
+		// Application Services
 		ReservationApplication: reservationsapp.NewService(
 			repositories.Reservation,
 			repositories.Customer,
@@ -94,6 +107,14 @@ func newServices(
 			repositories.TourDay,
 			repositories.Guide,
 			repositories.TourDayApplication,
+		),
+
+		GuideApplication: guidesapp.NewService(
+			userService,
+			repositories.User,
+			repositories.Guide,
+			repositories.Language,
+			repositories.LanguageGuide,
 		),
 	}
 }

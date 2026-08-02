@@ -18,4 +18,22 @@ func registerGuideRoutes(
 
 	guides.HandleFunc("/user/{user_id}", handlers.Guide.GetGuideByUserID).
 		Methods(http.MethodGet)
+
+	guides.HandleFunc("", handlers.GuideApplication.GetAllGuidesDetail).
+		Methods(http.MethodGet)
+
+	guides.HandleFunc("", handlers.GuideApplication.CreateGuide).
+		Methods(http.MethodPost)
+
+	guides.HandleFunc("/{id}", handlers.GuideApplication.UpdateGuide).
+		Methods(http.MethodPatch)
+
+	guides.HandleFunc("/{id}/languages", handlers.GuideApplication.GetLanguagesByGuideID).
+		Methods(http.MethodGet)
+
+	guides.HandleFunc("/{id}/languages", handlers.GuideApplication.AddLanguageToGuide).
+		Methods(http.MethodPost)
+
+	guides.HandleFunc("/{id}/languages/{language_id}", handlers.GuideApplication.RemoveLanguageFromGuide).
+		Methods(http.MethodDelete)
 }
