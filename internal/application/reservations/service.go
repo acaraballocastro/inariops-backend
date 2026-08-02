@@ -1,10 +1,11 @@
 package reservationsapp
 
 import (
-	"fmt"
 	"inariops/internal/domain"
 	"inariops/internal/modules/customers"
+	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
+
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
 	tours "inariops/internal/modules/tours/shared"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -21,6 +22,7 @@ type Service struct {
 	customersRepo            *customers.Repository
 	reservationCustomersRepo *reservationscustomers.Repository
 	tourDaysRepo             *tourdays.Repository
+	agenciesRepo             *agencies.Repository
 }
 
 func NewService(
@@ -28,12 +30,14 @@ func NewService(
 	customersRepo *customers.Repository,
 	reservationCustomersRepo *reservationscustomers.Repository,
 	tourDaysRepo *tourdays.Repository,
+	agenciesRepo *agencies.Repository,
 ) *Service {
 	return &Service{
 		reservationsRepo:         reservationsRepo,
 		customersRepo:            customersRepo,
 		reservationCustomersRepo: reservationCustomersRepo,
 		tourDaysRepo:             tourDaysRepo,
+		agenciesRepo:             agenciesRepo,
 	}
 }
 
@@ -70,74 +74,6 @@ func (s *Service) GetReservationDetailByCode(reservationCode string) (Reservatio
 	return detail, nil
 }
 
-func (s *Service) AddCustomerToReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
-
-	var customersList []string
-	for _, customerID := range customerIDs {
-		customer, err := s.customersRepo.GetCustomerByID(customerID)
-		if err != nil {
-			return err
-		}
-
-		if s.reservationCustomersRepo.IsCustomerInReservation(reservation.ID, customer.ID) {
-			return fmt.Errorf("customer with ID %s is already in the reservation", customer.ID)
-		}
-
-		customersList = append(customersList, customer.ID)
-	}
-
-	err = s.reservationCustomersRepo.AddCustomerToReservation(reservation.ID, customersList)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Service) RemoveCustomersFromReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
-
-	for _, customerID := range customerIDs {
-		err := s.reservationCustomersRepo.RemoveCustomerFromReservation(reservation.ID, customerID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *Service) GetCustomersByReservationCode(reservationCode string) ([]customers.Customer, error) {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return nil, err
-	}
-
-	customerIDs, err := s.reservationCustomersRepo.GetCustomersByReservationID(reservation.ID)
-
-	if len(customerIDs) == 0 {
-		return []customers.Customer{}, nil
-	}
-
-	var customersList []customers.Customer
-	for _, id := range customerIDs {
-		customer, err := s.customersRepo.GetCustomerByID(id)
-		if err != nil {
-			return nil, err
-		}
-		customersList = append(customersList, customer)
-	}
-
-	return customersList, nil
-}
-
 func (s *Service) CreateReservation(reservationRequest CreateReservationRequest) (ReservationDetail, error) {
 	reservation := reservations.Reservation{
 		ID:               uuid.New().String(),
@@ -152,6 +88,14 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 		SignatureStatus:  domain.SIGNATURE_NOT_SENT,
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
+	}
+
+	if reservation.AgencyID != nil && strings.TrimSpace(*reservation.AgencyID) != "" {
+		_, err := s.agenciesRepo.GetAgencyByID(*reservation.AgencyID)
+		if err != nil {
+			logger.Error("CreateReservation: failed to get agency for reservation: %v", err)
+			return ReservationDetail{}, err
+		}
 	}
 
 	createdReservation, err := s.reservationsRepo.CreateReservation(reservation)
@@ -310,6 +254,14 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 		return errors.ErrReservationNotFound
 	}
 
+	if reservation.AgencyID != nil && strings.TrimSpace(*reservation.AgencyID) != "" {
+		_, err := s.agenciesRepo.GetAgencyByID(*reservation.AgencyID)
+		if err != nil {
+			logger.Error("updateReservation: failed to get agency for reservation: %v", err)
+			return errors.ErrFailedToUpdateReservation
+		}
+	}
+
 	if reservation.Title != nil {
 		oldReservation.Title = reservation.Title
 	}
@@ -342,7 +294,22 @@ func (s *Service) UpdateReservation(reservation UpdateReservationRequest) error 
 		return errors.ErrFailedToUpdateReservation
 	}
 
-	existingCustomers, err := s.GetCustomersByReservationCode(reservation.Code)
+	existingCustomersID, err := s.reservationCustomersRepo.GetCustomersByReservationID(oldReservation.ID)
+
+	existingCustomers := []customers.Customer{}
+	for _, customerID := range existingCustomersID {
+		customer, err := s.customersRepo.GetCustomerByID(customerID)
+		if err != nil {
+			logger.Error(
+				"updateReservation: failed to get customer %s for reservation %s: %v",
+				customerID,
+				reservation.Code,
+				err,
+			)
+			return errors.ErrFailedToUpdateReservation
+		}
+		existingCustomers = append(existingCustomers, customer)
+	}
 
 	if len(reservation.Customers) == 0 {
 		for _, customer := range existingCustomers {
@@ -469,25 +436,27 @@ func (s *Service) SyncReservationStatus(reservationCode string) error {
 
 	newStatus := domain.RESERVATION_PENDING_ASSIGNMENT
 	for _, tourDay := range tourDays {
-		if tourDay.Status == domain.RESERVATION_GUIDE_CONFIRMED {
-			newStatus = domain.RESERVATION_GUIDE_CONFIRMED
+		if tourDay.Status == domain.RESERVATION_PAYMENT_PENDING {
+			newStatus = domain.RESERVATION_PAYMENT_PENDING
 			break
-		} else if tourDay.Status == domain.RESERVATION_GUIDE_PREASSIGNED && newStatus != domain.RESERVATION_GUIDE_CONFIRMED {
+		} else if tourDay.Status == domain.RESERVATION_GUIDE_PREASSIGNED && newStatus != domain.RESERVATION_PAYMENT_PENDING {
 			newStatus = domain.RESERVATION_GUIDE_PREASSIGNED
-		} else if tourDay.Status == domain.RESERVATION_PENDING_ASSIGNMENT && newStatus != domain.RESERVATION_GUIDE_CONFIRMED && newStatus != domain.RESERVATION_GUIDE_PREASSIGNED {
+		} else if tourDay.Status == domain.RESERVATION_PENDING_ASSIGNMENT && newStatus != domain.RESERVATION_PAYMENT_PENDING && newStatus != domain.RESERVATION_GUIDE_PREASSIGNED {
 			newStatus = domain.RESERVATION_PENDING_ASSIGNMENT
 		}
 	}
 
 	if reservation.Status != newStatus {
+		logger.Info("SyncReservationStatus: updating reservation %s status from %s to %s", reservationCode, reservation.Status, newStatus)
 		reservation.Status = newStatus
 		reservation.UpdatedAt = time.Now()
-		err = s.reservationsRepo.UpdateReservation(reservation)
+		err = s.reservationsRepo.UpdateReservationStatus(*reservation.Code, newStatus)
 		if err != nil {
 			logger.Error("SyncReservationStatus: failed to update reservation status for code %s: %v", reservationCode, err)
 			return err
 		}
 	}
+	logger.Info("SyncReservationStatus: reservation %s status updated to %s", reservationCode, newStatus)
 
 	return nil
 }

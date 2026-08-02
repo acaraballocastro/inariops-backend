@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	tourdaysapp "inariops/internal/application/tour_days"
 	"inariops/internal/domain"
-	tourdaysapp "inariops/internal/modules/tours/application/tour_days"
 	"inariops/internal/shared/logger"
 )
 

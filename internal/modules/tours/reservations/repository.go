@@ -160,3 +160,27 @@ func (r *Repository) DeleteReservation(code string) error {
 
 	return nil
 }
+
+func (r *Repository) UpdateReservationStatus(code string, status domain.ReservationStatus) error {
+	result, err := r.db.Exec(`
+		UPDATE reservations
+		SET status = $1,
+			updated_at = NOW()
+		WHERE code = $2
+	`, status, code)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.ErrReservationNotFound
+	}
+
+	return nil
+}

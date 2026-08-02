@@ -163,13 +163,13 @@ func (s *Service) ProcessExpiredGuideAssignments(ctx context.Context) (domain.Re
 	for _, tour := range tours {
 		result.Found++
 
-		err := s.tourDayRepo.UpdateTourDayStatus(tour.ID, domain.RESERVATION_GUIDE_CONFIRMED)
+		err := s.tourDayRepo.UpdateTourDayStatus(tour.ID, domain.RESERVATION_PAYMENT_PENDING)
 		if err != nil {
 			result.Failed++
 			continue
 		}
 
-		err = s.SetTourDayHistory(tour.ID, string(domain.RESERVATION_GUIDE_CONFIRMED), "SYSTEM", "Guide assignment expired")
+		err = s.SetTourDayHistory(tour.ID, string(domain.RESERVATION_PAYMENT_PENDING), "SYSTEM", "Guide assignment expired")
 
 		result.Processed++
 

@@ -49,19 +49,6 @@ func (h *Handler) CreateReservation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reservationDetail)
 }
 
-func (h *Handler) GetCustomersByReservationCode(w http.ResponseWriter, r *http.Request) {
-	code := mux.Vars(r)["code"]
-
-	customers, err := h.service.GetCustomersByReservationCode(code)
-	if err != nil {
-		http.Error(w, "failed to fetch customers", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(customers)
-}
-
 func (h *Handler) DeleteReservation(w http.ResponseWriter, r *http.Request) {
 	code := mux.Vars(r)["code"]
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	reservationsapp "inariops/internal/application/reservations"
 	"inariops/internal/domain"
-	reservationsapp "inariops/internal/modules/tours/application"
 	reservations "inariops/internal/modules/tours/reservations"
+	"inariops/internal/shared/logger"
 )
 
 type ReservationStatusWorker struct {
@@ -30,7 +31,7 @@ func (w *ReservationStatusWorker) Name() string {
 }
 
 func (w *ReservationStatusWorker) Interval() time.Duration {
-	return 5 * time.Minute
+	return 1 * time.Minute
 }
 
 func (w *ReservationStatusWorker) Run(
@@ -38,6 +39,7 @@ func (w *ReservationStatusWorker) Run(
 ) (domain.Result, error) {
 
 	reservations, err := w.reservationsRepo.GetAllReservations()
+	logger.Info("reservation-status-sync", "found reservations: %d", len(reservations))
 
 	if err != nil {
 		return domain.Result{}, err
@@ -53,6 +55,7 @@ func (w *ReservationStatusWorker) Run(
 			*reservation.Code,
 		)
 
+		logger.Info("reservation-status-sync", "syncing reservation: %s, error: %v", *reservation.Code, err)
 		if err != nil {
 			result.Failed++
 			continue
