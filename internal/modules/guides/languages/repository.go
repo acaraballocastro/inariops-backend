@@ -53,6 +53,29 @@ func (r *Repository) GetLanguageByCode(code string) (*Language, error) {
 	return language, nil
 }
 
+func (r *Repository) GetLanguageByID(id string) (*Language, error) {
+	language := &Language{}
+	err := r.db.QueryRow(`
+			SELECT
+				id,
+				name,
+				code,
+				is_active,
+				created_at,
+				updated_at
+			FROM languages WHERE id = $1
+		`, id).Scan(&language.ID, &language.Name, &language.Code, &language.IsActive, &language.CreatedAt, &language.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return language, nil
+}
+
 func (r *Repository) UpdateLanguage(language *Language) error {
 	_, err := r.db.Exec(`
 		UPDATE languages SET

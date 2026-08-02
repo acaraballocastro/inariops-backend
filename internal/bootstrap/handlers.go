@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	guidesapp "inariops/internal/application/guides"
 	reservationcustomersapp "inariops/internal/application/reservation_customers"
 	reservationsapp "inariops/internal/application/reservations"
 	tourdaysapp "inariops/internal/application/tour_days"
@@ -37,6 +38,8 @@ type Handlers struct {
 	ReservationCustomerApplication *reservationcustomersapp.Handler
 
 	TourDayApplication *tourdaysapp.Handler
+
+	GuideApplication *guidesapp.Handler
 }
 
 func newHandlers(
@@ -88,6 +91,10 @@ func newHandlers(
 
 		TourDayApplication: tourdaysapp.NewHandler(
 			services.TourDayApplication,
+		),
+
+		GuideApplication: guidesapp.NewHandler(
+			services.GuideApplication,
 		),
 	}
 }
