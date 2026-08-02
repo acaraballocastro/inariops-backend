@@ -1,34 +1,26 @@
 package bootstrap
 
 import (
-	"context"
 	"database/sql"
 )
 
 type App struct {
 	Repositories *Repositories
 	Services     *Services
+	Handlers     *Handlers
 }
 
-func New(
-	db *sql.DB,
-) *App {
+func New(db *sql.DB) *App {
 
 	repositories := newRepositories(db)
 
 	services := newServices(repositories)
 
+	handlers := newHandlers(services)
+
 	return &App{
-
 		Repositories: repositories,
-
-		Services: services,
+		Services:     services,
+		Handlers:     handlers,
 	}
-}
-
-func (a *App) Start(
-	ctx context.Context,
-) {
-
-	a.StartWorkers(ctx)
 }

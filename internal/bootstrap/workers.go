@@ -15,11 +15,11 @@ func (a *App) StartWorkers(
 	scheduler.Register(
 
 		workers.NewGuideAssignmentTimeoutWorker(
-			a.Services.TourDay,
+			a.Services.TourDayApplication,
 		),
 
 		workers.NewReservationStatusWorker(
-			a.Services.Reservation,
+			a.Services.ReservationApplication,
 			a.Repositories.Reservation,
 		),
 	)
