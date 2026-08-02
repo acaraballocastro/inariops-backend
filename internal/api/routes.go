@@ -16,6 +16,7 @@ func NewRouter(
 	router := mux.NewRouter()
 
 	router.Use(mux.CORSMethodMiddleware(router))
+	router.PathPrefix("/api/v1").Methods(http.MethodOptions).HandlerFunc(apiPreflightHandler)
 
 	// Health
 	router.HandleFunc("/health", healthCheck).
@@ -54,4 +55,11 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 	logger.Error("405 - Method Not Allowed: %s %s", r.Method, r.RequestURI)
+}
+
+func apiPreflightHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+	w.WriteHeader(http.StatusNoContent)
 }
