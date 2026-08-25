@@ -81,3 +81,16 @@ func (h *Handler) UpdateReservation(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) EraseReservation(w http.ResponseWriter, r *http.Request) {
+	code := mux.Vars(r)["code"]
+
+	err := h.service.EraseReservation(code)
+	if err != nil {
+		logger.Error("EraseReservation error: %v", err)
+		http.Error(w, "failed to erase reservation", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
