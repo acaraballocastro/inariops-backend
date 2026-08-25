@@ -8,6 +8,8 @@ import (
 	guidedomain "inariops/internal/modules/guides"
 	languageguides "inariops/internal/modules/guides/language_guides"
 	"inariops/internal/modules/guides/languages"
+	zoneguides "inariops/internal/modules/guides/zone_guides"
+	"inariops/internal/modules/guides/zones"
 	"inariops/internal/modules/users"
 	"inariops/internal/shared/logger"
 
@@ -20,6 +22,8 @@ type Service struct {
 	guidesRepository         *guidedomain.Repository
 	languagesRepository      *languages.Repository
 	languageGuidesRepository *languageguides.Repository
+	zonesRepository          *zones.Repository
+	zoneGuidesRepository     *zoneguides.Repository
 }
 
 func NewService(
@@ -28,6 +32,8 @@ func NewService(
 	guidesRepository *guidedomain.Repository,
 	languagesRepository *languages.Repository,
 	languageGuidesRepository *languageguides.Repository,
+	zonesRepository *zones.Repository,
+	zoneGuidesRepository *zoneguides.Repository,
 ) *Service {
 	return &Service{
 		usersService:             usersService,
@@ -35,6 +41,8 @@ func NewService(
 		guidesRepository:         guidesRepository,
 		languagesRepository:      languagesRepository,
 		languageGuidesRepository: languageGuidesRepository,
+		zonesRepository:          zonesRepository,
+		zoneGuidesRepository:     zoneGuidesRepository,
 	}
 }
 
@@ -82,9 +90,33 @@ func (s *Service) GetGuideDetailByID(guideID string) (GuidesDetail, error) {
 		languagesList = append(languagesList, *language)
 	}
 
+	zoneGuides, err := s.zoneGuidesRepository.GetZoneGuideByGuideID(guide.ID)
+	if err != nil {
+		logger.Error("GetGuideDetailByID: failed to load zone guides for guideID=%s: %v", guideID, err)
+		return GuidesDetail{}, err
+	}
+
+	zonesList := make([]zones.Zone, 0, len(zoneGuides))
+
+	for _, zg := range zoneGuides {
+		zone, err := s.zonesRepository.GetZoneByID(zg.ZoneID)
+		if err != nil {
+			logger.Error("GetGuideDetailByID: failed to load zone id=%s for guideID=%s: %v", zg.ZoneID, guideID, err)
+			return GuidesDetail{}, err
+		}
+		if zone == nil {
+			err := fmt.Errorf("zone not found")
+			logger.Error("GetGuideDetailByID: zone not found id=%s for guideID=%s: %v", zg.ZoneID, guideID, err)
+			return GuidesDetail{}, err
+		}
+
+		zonesList = append(zonesList, *zone)
+	}
+
 	return GuidesDetail{
 		Guide:     *guide,
 		Languages: languagesList,
+		Zones:     zonesList,
 	}, nil
 }
 
@@ -121,9 +153,35 @@ func (s *Service) GetAllGuidesDetail() ([]GuidesDetail, error) {
 			languagesList = append(languagesList, *language)
 		}
 
+		zoneguides, err := s.zoneGuidesRepository.GetZoneGuideByGuideID(guide.ID)
+		if err != nil {
+			logger.Error("GetAllGuidesDetail: failed to load zone guides for guideID=%s: %v", guide.ID, err)
+			return nil, err
+		}
+
+		logger.Info("GetAllGuidesDetail: guideID=%s has %d zone guides", guide.ID, len(zoneguides))
+
+		zonesList := make([]zones.Zone, 0, len(zoneguides))
+
+		for _, zg := range zoneguides {
+			zone, err := s.zonesRepository.GetZoneByID(zg.ZoneID)
+			if err != nil {
+				logger.Error("GetAllGuidesDetail: failed to load zone id=%s for guideID=%s: %v", zg.ZoneID, guide.ID, err)
+				return nil, err
+			}
+			if zone == nil {
+				err := fmt.Errorf("zone not found")
+				logger.Error("GetAllGuidesDetail: zone not found id=%s for guideID=%s: %v", zg.ZoneID, guide.ID, err)
+				return nil, err
+			}
+
+			zonesList = append(zonesList, *zone)
+		}
+
 		guidesDetails = append(guidesDetails, GuidesDetail{
 			Guide:     guide,
 			Languages: languagesList,
+			Zones:     zonesList,
 		})
 	}
 
@@ -262,7 +320,7 @@ func (s *Service) GetLanguagesByGuideID(guideID string) ([]languages.Language, e
 	return languagesList, nil
 }
 
-func (s *Service) xCreateGuide(guide CreateGuideRequest) (GuidesDetail, error) {
+func (s *Service) CreateGuide(guide CreateGuideRequest) (GuidesDetail, error) {
 	// Create the user
 	newUser := &domain.User{
 		ID:        uuid.New().String(),
@@ -301,6 +359,14 @@ func (s *Service) xCreateGuide(guide CreateGuideRequest) (GuidesDetail, error) {
 	for _, lang := range guide.Languages {
 		if err := s.AddLanguageToGuide(createdGuide.ID, lang.Code); err != nil {
 			logger.Error("CreateGuide: failed to add language code=%s to guideID=%s: %v", lang.Code, createdGuide.ID, err)
+			return GuidesDetail{}, err
+		}
+	}
+
+	// Add zones to the guide
+	for _, zone := range guide.Zones {
+		if err := s.AddZoneToGuide(createdGuide.ID, zone.ID); err != nil {
+			logger.Error("CreateGuide: failed to add zone id=%s to guideID=%s: %v", zone.ID, createdGuide.ID, err)
 			return GuidesDetail{}, err
 		}
 	}
@@ -394,6 +460,46 @@ func (s *Service) UpdateGuide(guideID string, guide UpdateGuideRequest) (GuidesD
 		}
 	}
 
+	// Remove zones that are no longer present in the update request.
+	existingZones, err := s.zoneGuidesRepository.GetZoneGuideByGuideID(guideID)
+	if err != nil {
+		logger.Error("UpdateGuide: failed to load existing zones for guideID=%s: %v", guideID, err)
+		return GuidesDetail{}, err
+	}
+
+	existingZoneIDs := make(map[string]struct{}, len(existingZones))
+
+	for _, existingZone := range existingZones {
+		existingZoneIDs[existingZone.ZoneID] = struct{}{}
+
+		// Check if the existing zone is in the requested zones
+		found := false
+		for _, requestedZone := range guide.Zones {
+			if existingZone.ZoneID == requestedZone.ID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			if err := s.zoneGuidesRepository.DeleteZoneGuide(guideID, existingZone.ZoneID); err != nil {
+				logger.Error("UpdateGuide: failed to remove zone id=%s from guideID=%s: %v", existingZone.ZoneID, guideID, err)
+				return GuidesDetail{}, err
+			}
+		}
+	}
+
+	// Add zones that are present in the request but not yet linked.
+	for _, requestedZone := range guide.Zones {
+		if _, exists := existingZoneIDs[requestedZone.ID]; exists {
+			continue
+		}
+		if err := s.AddZoneToGuide(guideID, requestedZone.ID); err != nil {
+			logger.Error("UpdateGuide: failed to add zone id=%s to guideID=%s: %v", requestedZone.ID, guideID, err)
+			return GuidesDetail{}, err
+		}
+	}
+
 	// Fetch the updated guide details
 	updatedGuideDetail, err := s.GetGuideDetailByID(guideID)
 	if err != nil {
@@ -422,4 +528,56 @@ func (s *Service) resolveLanguageCode(language languages.Language) (string, erro
 	}
 
 	return resolvedLanguage.Code, nil
+}
+
+func (s *Service) AddZoneToGuide(guideID, zoneID string) error {
+	// Check if the guide exists
+	guide, err := s.guidesRepository.GetGuideByID(guideID)
+	if err != nil {
+		logger.Error("AddZoneToGuide: failed to get guide id=%s: %v", guideID, err)
+		return err
+	}
+	if guide.ID == "" {
+		err := fmt.Errorf("guide not found")
+		logger.Error("AddZoneToGuide: guide not found id=%s: %v", guideID, err)
+		return err
+	}
+
+	// Check if the zone exists
+	zone, err := s.zonesRepository.GetZoneByID(zoneID)
+	if err != nil {
+		logger.Error("AddZoneToGuide: failed to get zone id=%s for guideID=%s: %v", zoneID, guideID, err)
+		return err
+	}
+
+	if zone == nil {
+		err := fmt.Errorf("zone not found")
+		logger.Error("AddZoneToGuide: zone not found id=%s for guideID=%s: %v", zoneID, guideID, err)
+		return err
+	}
+
+	// Check if the zone-guide association already exists
+	exists, err := s.zoneGuidesRepository.IsZoneGuideExists(guideID, zone.ID)
+	if err != nil {
+		logger.Error("AddZoneToGuide: failed to check association guideID=%s zoneID=%s: %v", guideID, zone.ID, err)
+		return err
+	}
+	if exists {
+		err := fmt.Errorf("zone already associated with the guide")
+		logger.Error("AddZoneToGuide: association already exists guideID=%s zoneID=%s: %v", guideID, zone.ID, err)
+		return err
+	}
+
+	zoneGuide := &zoneguides.ZoneGuide{
+		GuideID: guideID,
+		ZoneID:  zone.ID,
+	}
+
+	_, err = s.zoneGuidesRepository.CreateZoneGuide(zoneGuide)
+	if err != nil {
+		logger.Error("AddZoneToGuide: failed to create association guideID=%s zoneID=%s: %v", guideID, zone.ID, err)
+		return err
+	}
+
+	return nil
 }
