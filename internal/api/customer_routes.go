@@ -26,6 +26,6 @@ func registerCustomerRoutes(
 	customers.HandleFunc("/{id}", handlers.Customer.UpdateCustomer).
 		Methods(http.MethodPatch)
 
-	customers.HandleFunc("/{id}", handlers.Customer.DeleteCustomer).
+	customers.HandleFunc("/{id}", handlers.ReservationCustomerApplication.DeleteCustomer).
 		Methods(http.MethodDelete)
 }

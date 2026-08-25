@@ -5,6 +5,7 @@ import (
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
+	"inariops/internal/shared/logger"
 )
 
 type Service struct {
@@ -91,4 +92,33 @@ func (s *Service) GetCustomersByReservationCode(reservationCode string) ([]custo
 	}
 
 	return customersList, nil
+}
+
+func (s *Service) DeleteCustomer(customerID string) error {
+	// Check if the customer exists
+	customer, err := s.customersRepo.GetCustomerByID(customerID)
+	if err != nil {
+		logger.Error("Error retrieving customer with ID %s: %v", customerID, err)
+		return err
+	}
+	if customer.ID == "" {
+		logger.Error("Customer with ID %s not found", customerID)
+		return fmt.Errorf("customer with ID %s not found", customerID)
+	}
+
+	// Remove the customer from all reservations
+	err = s.reservationCustomersRepo.RemoveAllReservationsFromCustomer(customerID)
+	if err != nil {
+		logger.Error("Error removing customer with ID %s from reservations: %v", customerID, err)
+		return err
+	}
+
+	// Delete the customer from the customers table
+	err = s.customersRepo.DeleteCustomer(customerID)
+	if err != nil {
+		logger.Error("Error deleting customer with ID %s: %v", customerID, err)
+		return err
+	}
+
+	return nil
 }
