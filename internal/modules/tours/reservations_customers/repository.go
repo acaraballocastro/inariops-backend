@@ -87,3 +87,11 @@ func (r *Repository) IsCustomerInReservation(reservationID string, customerID st
 	}
 	return exists
 }
+
+func (r *Repository) RemoveAllReservationsFromCustomer(customerID string) error {
+	_, err := r.db.Exec(`
+		DELETE FROM reservation_customers
+		WHERE customer_id = $1
+	`, customerID)
+	return err
+}

@@ -66,16 +66,6 @@ func (h *Handler) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) DeleteCustomer(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	if err := h.service.DeleteCustomer(id); err != nil {
-		http.Error(w, "failed to delete customer", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 func (h *Handler) GetAllCustomers(w http.ResponseWriter, r *http.Request) {
 	customers, err := h.service.GetAllCustomers()
 	if err != nil {

@@ -66,15 +66,6 @@ func (r *Repository) UpdateCustomer(customer Customer) error {
 	return err
 }
 
-func (r *Repository) DeleteCustomer(id string) error {
-	_, err := r.db.Exec(`
-		DELETE FROM customers
-		WHERE id = $1
-	`, id)
-
-	return err
-}
-
 func (r *Repository) GetAllCustomers() ([]Customer, error) {
 	rows, err := r.db.Query(`
 		SELECT id, full_name, document_number, phone, email, age, created_at
@@ -176,4 +167,12 @@ func (r *Repository) GetCustomerByEmail(email string) (Customer, error) {
 	)
 
 	return customer, err
+}
+
+func (r *Repository) DeleteCustomer(id string) error {
+	_, err := r.db.Exec(`
+		DELETE FROM customers WHERE id = $1
+	`, id)
+
+	return err
 }
