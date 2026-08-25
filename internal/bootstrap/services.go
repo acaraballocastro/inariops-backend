@@ -10,6 +10,7 @@ import (
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/languages"
+	"inariops/internal/modules/guides/zones"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -32,6 +33,8 @@ type Services struct {
 	Agency *agencies.Service
 
 	Language *languages.Service
+
+	Zone *zones.Service
 
 	ReservationApplication *reservationsapp.Service
 
@@ -88,6 +91,10 @@ func newServices(
 			repositories.Language,
 		),
 
+		Zone: zones.NewService(
+			repositories.Zone,
+		),
+
 		// Application Services
 		ReservationApplication: reservationsapp.NewService(
 			repositories.Reservation,
@@ -115,6 +122,8 @@ func newServices(
 			repositories.Guide,
 			repositories.Language,
 			repositories.LanguageGuide,
+			repositories.Zone,
+			repositories.ZoneGuide,
 		),
 	}
 }

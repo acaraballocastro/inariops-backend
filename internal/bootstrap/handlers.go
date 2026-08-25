@@ -10,6 +10,7 @@ import (
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/languages"
+	"inariops/internal/modules/guides/zones"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -32,6 +33,8 @@ type Handlers struct {
 	Agency *agencies.Handler
 
 	Language *languages.Handler
+
+	Zone *zones.Handler
 
 	ReservationApplication *reservationsapp.Handler
 
@@ -78,6 +81,10 @@ func newHandlers(
 
 		Language: languages.NewHandler(
 			services.Language,
+		),
+
+		Zone: zones.NewHandler(
+			services.Zone,
 		),
 
 		// Application Handlers
