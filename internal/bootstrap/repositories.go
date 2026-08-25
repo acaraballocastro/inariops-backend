@@ -10,6 +10,8 @@ import (
 	"inariops/internal/modules/guides"
 	languageguides "inariops/internal/modules/guides/language_guides"
 	"inariops/internal/modules/guides/languages"
+	zoneguides "inariops/internal/modules/guides/zone_guides"
+	"inariops/internal/modules/guides/zones"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
@@ -39,6 +41,10 @@ type Repositories struct {
 	Language *languages.Repository
 
 	LanguageGuide *languageguides.Repository
+
+	Zone *zones.Repository
+
+	ZoneGuide *zoneguides.Repository
 }
 
 func newRepositories(db *sql.DB) *Repositories {
@@ -66,5 +72,9 @@ func newRepositories(db *sql.DB) *Repositories {
 		Language: languages.NewRepository(db),
 
 		LanguageGuide: languageguides.NewRepository(db),
+
+		Zone: zones.NewRepository(db),
+
+		ZoneGuide: zoneguides.NewRepository(db),
 	}
 }
