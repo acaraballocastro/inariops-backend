@@ -101,7 +101,7 @@ func (h *Handler) CreateGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdGuide, err := h.service.CreateGuide(guide)
+	createdGuide, err := h.service.xCreateGuide(guide)
 	if err != nil {
 		http.Error(w, "failed to create guide", http.StatusInternalServerError)
 		return
