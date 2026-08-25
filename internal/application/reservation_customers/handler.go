@@ -27,3 +27,14 @@ func (h *Handler) GetCustomersByReservationCode(w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(customers)
 }
+
+func (h *Handler) DeleteCustomer(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	if err := h.service.DeleteCustomer(id); err != nil {
+		http.Error(w, "failed to delete customer", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

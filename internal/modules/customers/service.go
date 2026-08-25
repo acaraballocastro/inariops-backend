@@ -67,10 +67,6 @@ func (s *Service) UpdateCustomer(input UpdateCustomerInput) error {
 	return s.repo.UpdateCustomer(customer)
 }
 
-func (s *Service) DeleteCustomer(id string) error {
-	return s.repo.DeleteCustomer(id)
-}
-
 func (s *Service) GetAllCustomers() ([]Customer, error) {
 	customers, err := s.repo.GetAllCustomers()
 	if err != nil {
