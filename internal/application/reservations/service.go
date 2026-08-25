@@ -460,3 +460,47 @@ func (s *Service) SyncReservationStatus(reservationCode string) error {
 
 	return nil
 }
+
+func (s *Service) EraseReservation(reservationCode string) error {
+	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
+	if err != nil {
+		logger.Error("EraseReservation: failed to get reservation for code %s: %v", reservationCode, err)
+		return err
+	}
+
+	tourDays, err := s.tourDaysRepo.GetTourDaysByReservationID(reservation.ID)
+	if err != nil {
+		logger.Error("EraseReservation: failed to get tour days for reservation ID %s: %v", reservation.ID, err)
+		return err
+	}
+
+	for _, tourDay := range tourDays {
+		err := s.tourDaysRepo.DeleteTourDaysByID(tourDay.ID)
+		if err != nil {
+			logger.Error("EraseReservation: failed to delete tour day with ID %s: %v", tourDay.ID, err)
+			return err
+		}
+	}
+
+	customers, err := s.reservationCustomersRepo.GetCustomersByReservationID(reservation.ID)
+	if err != nil {
+		logger.Error("EraseReservation: failed to get customers for reservation ID %s: %v", reservation.ID, err)
+		return err
+	}
+
+	for _, customerID := range customers {
+		err := s.reservationCustomersRepo.RemoveCustomerFromReservation(reservation.ID, customerID)
+		if err != nil {
+			logger.Error("EraseReservation: failed to remove customer %s from reservation ID %s: %v", customerID, reservation.ID, err)
+			return err
+		}
+	}
+
+	err = s.reservationsRepo.EraseReservation(reservationCode)
+	if err != nil {
+		logger.Error("EraseReservation: failed to delete reservation for code %s: %v", reservationCode, err)
+		return err
+	}
+
+	return nil
+}

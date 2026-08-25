@@ -291,3 +291,10 @@ func (r *Repository) DeleteTourDaysByReservationID(reservationID string) error {
 	`, domain.RESERVATION_CANCELLED, time.Now(), reservationID)
 	return err
 }
+
+func (r *Repository) DeleteTourDaysByID(id string) error {
+	_, err := r.db.Exec(`
+		DELETE FROM tour_days WHERE id = $1
+	`, id)
+	return err
+}

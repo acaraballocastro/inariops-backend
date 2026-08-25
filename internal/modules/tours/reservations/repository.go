@@ -15,22 +15,53 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) CreateReservation(reservation Reservation) (Reservation, error) {
-	_, err := r.db.Exec(`
-			INSERT INTO reservations (
-				id, title, description, status, quote_number, file_number, agency_id, total_people_count, start_date,
-				end_date, signature_status, voucher_status, created_at, updated_at
-			)
-			VALUES (
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-				$11, $12, $13, $14
-			)
-		`,
-		reservation.ID, reservation.Title, reservation.Description, reservation.Status,
-		reservation.QuoteNumber, reservation.FileNumber, reservation.AgencyID, reservation.TotalPeopleCount, reservation.StartDate,
-		reservation.EndDate, reservation.SignatureStatus, reservation.VoucherStatus, reservation.CreatedAt, reservation.UpdatedAt,
+
+	err := r.db.QueryRow(`
+        INSERT INTO reservations (
+            id,
+            title,
+            description,
+            status,
+            quote_number,
+            file_number,
+            agency_id,
+            total_people_count,
+            start_date,
+            end_date,
+            signature_status,
+            voucher_status,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14
+        )
+        RETURNING code
+    `,
+		reservation.ID,
+		reservation.Title,
+		reservation.Description,
+		reservation.Status,
+		reservation.QuoteNumber,
+		reservation.FileNumber,
+		reservation.AgencyID,
+		reservation.TotalPeopleCount,
+		reservation.StartDate,
+		reservation.EndDate,
+		reservation.SignatureStatus,
+		reservation.VoucherStatus,
+		reservation.CreatedAt,
+		reservation.UpdatedAt,
+	).Scan(
+		&reservation.Code,
 	)
 
-	return reservation, err
+	if err != nil {
+		return Reservation{}, err
+	}
+
+	return reservation, nil
 }
 
 func (r *Repository) GetReservationByCode(code string) (Reservation, error) {
@@ -168,6 +199,28 @@ func (r *Repository) UpdateReservationStatus(code string, status domain.Reservat
 			updated_at = NOW()
 		WHERE code = $2
 	`, status, code)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.ErrReservationNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) EraseReservation(code string) error {
+	result, err := r.db.Exec(`
+		DELETE FROM reservations
+		WHERE code = $1
+	`, code)
 
 	if err != nil {
 		return err

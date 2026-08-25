@@ -23,10 +23,16 @@ func registerReservationRoutes(
 	reservations.HandleFunc("/{code}", handlers.Reservation.GetReservationByCode).
 		Methods(http.MethodGet)
 
+	reservations.HandleFunc("/details/{code}", handlers.ReservationApplication.GetReservationDetailByCode).
+		Methods(http.MethodGet)
+
 	reservations.HandleFunc("/{code}", handlers.ReservationApplication.UpdateReservation).
 		Methods(http.MethodPatch)
 
 	reservations.HandleFunc("/{code}", handlers.ReservationApplication.DeleteReservation).
+		Methods(http.MethodDelete)
+
+	reservations.HandleFunc("/erase/{code}", handlers.ReservationApplication.EraseReservation).
 		Methods(http.MethodDelete)
 
 	reservations.HandleFunc("/{code}/customers", handlers.ReservationCustomerApplication.GetCustomersByReservationCode).
