@@ -87,17 +87,19 @@ func (s *Service) CreateUser(name, email, phone string, role string) (domain.Use
 		return domain.UserCredentials{}, err
 	}
 
-	guide := domain.Guide{
-		ID:             uuid.New().String(),
-		UserID:         user.ID,
-		MaxToursPerDay: 1, // Set a default value
-		CreatedAt:      time.Now(),
-	}
+	if user.Role == domain.RoleGuide {
+		guide := domain.Guide{
+			ID:             uuid.New().String(),
+			UserID:         user.ID,
+			MaxToursPerDay: 1,
+			CreatedAt:      time.Now(),
+		}
 
-	err = s.guides.CreateGuide(guide)
-	if err != nil {
-		_ = s.repo.DeleteUser(user.ID)
-		return domain.UserCredentials{}, err
+		err = s.guides.CreateGuide(guide)
+		if err != nil {
+			_ = s.repo.DeleteUser(user.ID)
+			return domain.UserCredentials{}, err
+		}
 	}
 
 	return domain.UserCredentials{

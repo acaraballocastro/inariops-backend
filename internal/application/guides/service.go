@@ -6,11 +6,13 @@ import (
 
 	"inariops/internal/domain"
 	guidedomain "inariops/internal/modules/guides"
+	"inariops/internal/modules/guides/availabilities"
 	languageguides "inariops/internal/modules/guides/language_guides"
 	"inariops/internal/modules/guides/languages"
 	zoneguides "inariops/internal/modules/guides/zone_guides"
 	"inariops/internal/modules/guides/zones"
 	"inariops/internal/modules/users"
+	appErrors "inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
 
 	"github.com/google/uuid"
@@ -24,6 +26,7 @@ type Service struct {
 	languageGuidesRepository *languageguides.Repository
 	zonesRepository          *zones.Repository
 	zoneGuidesRepository     *zoneguides.Repository
+	availabilitiesRepository *availabilities.Repository
 }
 
 func NewService(
@@ -34,6 +37,7 @@ func NewService(
 	languageGuidesRepository *languageguides.Repository,
 	zonesRepository *zones.Repository,
 	zoneGuidesRepository *zoneguides.Repository,
+	availabilitiesRepository *availabilities.Repository,
 ) *Service {
 	return &Service{
 		usersService:             usersService,
@@ -43,6 +47,7 @@ func NewService(
 		languageGuidesRepository: languageGuidesRepository,
 		zonesRepository:          zonesRepository,
 		zoneGuidesRepository:     zoneGuidesRepository,
+		availabilitiesRepository: availabilitiesRepository,
 	}
 }
 
@@ -580,4 +585,120 @@ func (s *Service) AddZoneToGuide(guideID, zoneID string) error {
 	}
 
 	return nil
+}
+
+// Availibilities
+
+func (s *Service) CreateAvailability(availability availabilities.CreateAvailabilityRequest) (*availabilities.Availability, error) {
+	startDate, endDate, err := validateAvailabilityDates(availability.StartDate, availability.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the guide exists
+	guide, err := s.guidesRepository.GetGuideByID(availability.GuideID)
+	if err != nil {
+		logger.Error("CreateAvailability: failed to get guide id=%s: %v", availability.GuideID, err)
+		return nil, err
+	}
+	if guide.ID == "" {
+		err := fmt.Errorf("guide not found")
+		logger.Error("CreateAvailability: guide not found id=%s: %v", availability.GuideID, err)
+		return nil, err
+	}
+	conflict, err := s.availabilitiesRepository.HasConflictingAvailability(availability.GuideID, startDate, endDate, nil)
+	if err != nil {
+		return nil, err
+	}
+	if conflict {
+		return nil, appErrors.ErrAvailabilityConflict
+	}
+
+	// Create the availability
+	newAvailability := &availabilities.Availability{
+		ID:        uuid.New(),
+		GuideID:   availability.GuideID,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Reason:    availability.Reason,
+	}
+
+	return s.availabilitiesRepository.CreateAvailability(newAvailability)
+}
+
+func (s *Service) GetAvailabilitiesByGuideID(guideID string) ([]*availabilities.Availability, error) {
+	// Check if the guide exists
+	guide, err := s.guidesRepository.GetGuideByID(guideID)
+	if err != nil {
+		logger.Error("GetAvailabilitiesByGuideID: failed to get guide id=%s: %v", guideID, err)
+		return nil, err
+	}
+	if guide.ID == "" {
+		err := fmt.Errorf("guide not found")
+		logger.Error("GetAvailabilitiesByGuideID: guide not found id=%s: %v", guideID, err)
+		return nil, err
+	}
+
+	return s.availabilitiesRepository.GetAvailabilitiesByGuideID(guideID)
+}
+
+func (s *Service) DeleteAvailability(availabilityID string) error {
+	availability, err := s.availabilitiesRepository.GetAvailabilityByID(availabilityID)
+	if err != nil {
+		logger.Error("deleteAvailability: failed to get availability id=%s: %v", availabilityID, err)
+		return err
+	}
+	if availability == nil {
+		err := fmt.Errorf("availability not found")
+		logger.Error("deleteAvailability: availability not found id=%s: %v", availabilityID, err)
+		return err
+	}
+
+	return s.availabilitiesRepository.DeleteAvailability(availabilityID)
+}
+
+func (s *Service) UpdateAvailability(guideID, availabilityID string, updatedAvailability availabilities.CreateAvailabilityRequest) (*availabilities.Availability, error) {
+	startDate, endDate, err := validateAvailabilityDates(updatedAvailability.StartDate, updatedAvailability.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	availability, err := s.availabilitiesRepository.GetAvailabilityByID(availabilityID)
+	if err != nil {
+		logger.Error("updateAvailability: failed to get availability id=%s: %v", availabilityID, err)
+		return nil, err
+	}
+	if availability == nil {
+		err := appErrors.ErrAvailabilityNotFound
+		logger.Error("updateAvailability: availability not found id=%s: %v", availabilityID, err)
+		return nil, err
+	}
+	if availability.GuideID != guideID {
+		return nil, appErrors.ErrAvailabilityNotFound
+	}
+	conflict, err := s.availabilitiesRepository.HasConflictingAvailability(guideID, startDate, endDate, &availability.ID)
+	if err != nil {
+		return nil, err
+	}
+	if conflict {
+		return nil, appErrors.ErrAvailabilityConflict
+	}
+
+	availability.StartDate = startDate
+	availability.EndDate = endDate
+	availability.Reason = updatedAvailability.Reason
+
+	if err := s.availabilitiesRepository.UpdateAvailability(availability); err != nil {
+		logger.Error("updateAvailability: failed to update availability id=%s: %v", availabilityID, err)
+		return nil, err
+	}
+
+	return availability, nil
+}
+
+func validateAvailabilityDates(start, end *time.Time) (*time.Time, *time.Time, error) {
+	if start == nil || end == nil || end.Before(*start) {
+		return nil, nil, appErrors.ErrInvalidAvailabilityDate
+	}
+	return start, end, nil
 }

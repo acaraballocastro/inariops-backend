@@ -17,8 +17,11 @@ func registerTourDayRoutes(
 	tourDays.HandleFunc("/assign-guide", handlers.TourDayApplication.AssignGuide).
 		Methods(http.MethodPatch)
 
-	tourDays.HandleFunc("/assign-guide", handlers.TourDayApplication.UnassignGuide).
+	tourDays.HandleFunc("/unassign-guide", handlers.TourDayApplication.UnassignGuide).
 		Methods(http.MethodPatch)
+
+	tourDays.HandleFunc("/available-for-guide/{guide_id}", handlers.TourDayApplication.GetTourDaysAvailableForGuide).
+		Methods(http.MethodGet)
 
 	tourDays.HandleFunc("/by-reservation/{reservation_id}", handlers.TourDay.GetTourDaysByReservationID).
 		Methods(http.MethodGet)
@@ -31,6 +34,9 @@ func registerTourDayRoutes(
 		Methods(http.MethodGet)
 
 	tourDays.HandleFunc("/{id}", handlers.TourDay.UpdateTourDay).
+		Methods(http.MethodPatch)
+
+	tourDays.HandleFunc("/{id}/confirm", handlers.TourDayApplication.ConfirmTourDay).
 		Methods(http.MethodPatch)
 
 	tourDays.HandleFunc("/{id}", handlers.TourDay.CancelTourDay).

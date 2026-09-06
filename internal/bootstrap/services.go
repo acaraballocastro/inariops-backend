@@ -113,6 +113,7 @@ func newServices(
 		TourDayApplication: tourdaysapp.NewService(
 			repositories.TourDay,
 			repositories.Guide,
+			repositories.Availability,
 			repositories.TourDayApplication,
 		),
 
@@ -124,6 +125,7 @@ func newServices(
 			repositories.LanguageGuide,
 			repositories.Zone,
 			repositories.ZoneGuide,
+			repositories.Availability,
 		),
 	}
 }

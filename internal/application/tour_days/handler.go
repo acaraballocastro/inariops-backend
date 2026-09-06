@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"inariops/internal/shared/logger"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -49,4 +51,24 @@ func (h *Handler) UnassignGuide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) ConfirmTourDay(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.ConfirmTourDay(mux.Vars(r)["id"]); err != nil {
+		http.Error(w, "failed to confirm tour day", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetTourDaysAvailableForGuide(w http.ResponseWriter, r *http.Request) {
+	guideID := mux.Vars(r)["guide_id"]
+	tourDays, err := h.service.TourDaysAvailableForGuide(guideID)
+	if err != nil {
+		http.Error(w, "failed to fetch available tour days", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tourDays)
 }
