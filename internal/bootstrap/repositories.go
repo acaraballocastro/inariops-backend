@@ -13,6 +13,9 @@ import (
 	"inariops/internal/modules/guides/languages"
 	zoneguides "inariops/internal/modules/guides/zone_guides"
 	"inariops/internal/modules/guides/zones"
+	"inariops/internal/modules/itinerary"
+	"inariops/internal/modules/itinerary/activity"
+	"inariops/internal/modules/itinerary/places"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
@@ -48,6 +51,12 @@ type Repositories struct {
 	ZoneGuide *zoneguides.Repository
 
 	Availability *availabilities.Repository
+
+	ItineraryItem *itinerary.Repository
+
+	Place *places.Repository
+
+	Activity *activity.Repository
 }
 
 func newRepositories(db *sql.DB) *Repositories {
@@ -81,5 +90,11 @@ func newRepositories(db *sql.DB) *Repositories {
 		ZoneGuide: zoneguides.NewRepository(db),
 
 		Availability: availabilities.NewRepository(db),
+
+		ItineraryItem: itinerary.NewRepository(db),
+
+		Place: places.NewRepository(db),
+
+		Activity: activity.NewRepository(db),
 	}
 }
