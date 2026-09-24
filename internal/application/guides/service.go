@@ -207,6 +207,14 @@ func (s *Service) GetAllGuidesDetail() ([]GuidesDetail, error) {
 }
 
 func (s *Service) AddLanguageToGuide(guideID, languageCode string) error {
+	if languageCode == "" {
+		logger.Error(
+			"AddLanguageToGuide: language code is required guideID=%s",
+			guideID,
+		)
+		return appErrors.ErrLanguageCodeRequired
+	}
+
 	// Check if the guide exists
 	guide, err := s.guidesRepository.GetGuideByID(guideID)
 	if err != nil {
@@ -266,6 +274,14 @@ func (s *Service) AddLanguageToGuide(guideID, languageCode string) error {
 }
 
 func (s *Service) RemoveLanguageFromGuide(guideID, languageCode string) error {
+	if languageCode == "" {
+		logger.Error(
+			"RemoveLanguageFromGuide: language code is required guideID=%s",
+			guideID,
+		)
+		return appErrors.ErrLanguageCodeRequired
+	}
+
 	// Check if the guide exists
 	guide, err := s.guidesRepository.GetGuideByID(guideID)
 	if err != nil {
