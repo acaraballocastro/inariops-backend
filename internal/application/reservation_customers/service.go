@@ -35,7 +35,7 @@ func (s *Service) AddCustomerToReservation(
 	reservationCode string,
 	customerIDs []string,
 ) error {
-	return db.WithTransaction(nil, func(tx *sql.Tx) error {
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
 
 		reservationsRepo := s.reservationsRepo.WithTx(tx)
 		customersRepo := s.customersRepo.WithTx(tx)
