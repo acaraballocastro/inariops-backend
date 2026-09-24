@@ -71,6 +71,7 @@ func newServices(
 	)
 
 	userService := users.NewService(
+		database,
 		repositories.User,
 		authService,
 		guideService,
