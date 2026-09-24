@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,22 +11,47 @@ import (
 func registerLanguageRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	languages := router.PathPrefix("/languages").Subrouter()
 
-	languages.HandleFunc("", handlers.Language.ListLanguages).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		languages,
+		"",
+		handlers.Language.ListLanguages,
+		http.MethodGet,
+		cfg,
+	)
 
-	languages.HandleFunc("", handlers.Language.CreateLanguage).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		languages,
+		"/{code}",
+		handlers.Language.GetLanguageByCode,
+		http.MethodGet,
+		cfg,
+	)
 
-	languages.HandleFunc("/{code}", handlers.Language.GetLanguageByCode).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		languages,
+		"",
+		handlers.Language.CreateLanguage,
+		http.MethodPost,
+		cfg,
+	)
 
-	languages.HandleFunc("/{code}", handlers.Language.UpdateLanguage).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		languages,
+		"/{code}",
+		handlers.Language.UpdateLanguage,
+		http.MethodPatch,
+		cfg,
+	)
 
-	languages.HandleFunc("/{code}", handlers.Language.DeleteLanguage).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		languages,
+		"/{code}",
+		handlers.Language.DeleteLanguage,
+		http.MethodDelete,
+		cfg,
+	)
 }

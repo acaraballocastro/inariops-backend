@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,22 +11,47 @@ import (
 func registerCustomerRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	customers := router.PathPrefix("/customers").Subrouter()
 
-	customers.HandleFunc("", handlers.Customer.GetAllCustomers).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		customers,
+		"",
+		handlers.Customer.GetAllCustomers,
+		http.MethodGet,
+		cfg,
+	)
 
-	customers.HandleFunc("", handlers.Customer.CreateCustomer).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		customers,
+		"/{id}",
+		handlers.Customer.GetCustomerByID,
+		http.MethodGet,
+		cfg,
+	)
 
-	customers.HandleFunc("/{id}", handlers.Customer.GetCustomerByID).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		customers,
+		"",
+		handlers.Customer.CreateCustomer,
+		http.MethodPost,
+		cfg,
+	)
 
-	customers.HandleFunc("/{id}", handlers.Customer.UpdateCustomer).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		customers,
+		"/{id}",
+		handlers.Customer.UpdateCustomer,
+		http.MethodPatch,
+		cfg,
+	)
 
-	customers.HandleFunc("/{id}", handlers.ReservationCustomerApplication.DeleteCustomer).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		customers,
+		"/{id}",
+		handlers.ReservationCustomerApplication.DeleteCustomer,
+		http.MethodDelete,
+		cfg,
+	)
 }

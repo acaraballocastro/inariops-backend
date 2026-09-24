@@ -702,3 +702,12 @@ func validateAvailabilityDates(start, end *time.Time) (*time.Time, *time.Time, e
 	}
 	return start, end, nil
 }
+
+func (s *Service) IsOwnGuide(userID, guideID string) (bool, error) {
+	guide, err := s.guidesRepository.GetGuideByID(guideID)
+	if err != nil {
+		return false, err
+	}
+
+	return guide.UserID == userID, nil
+}

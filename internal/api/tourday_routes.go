@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,35 +11,87 @@ import (
 func registerTourDayRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
 	tourDays := router.PathPrefix("/tour-days").Subrouter()
 
-	// Specific tour day routes
-	tourDays.HandleFunc("/assign-guide", handlers.TourDayApplication.AssignGuide).
-		Methods(http.MethodPatch)
+	// =====================
+	// ADMIN ONLY
+	// =====================
 
-	tourDays.HandleFunc("/unassign-guide", handlers.TourDayApplication.UnassignGuide).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		tourDays,
+		"/assign-guide",
+		handlers.TourDayApplication.AssignGuide,
+		http.MethodPatch,
+		cfg,
+	)
 
-	tourDays.HandleFunc("/available-for-guide/{guide_id}", handlers.TourDayApplication.GetTourDaysAvailableForGuide).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		tourDays,
+		"/unassign-guide",
+		handlers.TourDayApplication.UnassignGuide,
+		http.MethodPatch,
+		cfg,
+	)
 
-	tourDays.HandleFunc("/by-reservation/{reservation_id}", handlers.TourDay.GetTourDaysByReservationID).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		tourDays,
+		"",
+		handlers.TourDay.CreateTourDay,
+		http.MethodPost,
+		cfg,
+	)
 
-	// CRUD operations for tour days
-	tourDays.HandleFunc("", handlers.TourDay.CreateTourDay).
-		Methods(http.MethodPost)
+	HandleAdmin(
+		tourDays,
+		"/{id}",
+		handlers.TourDay.UpdateTourDay,
+		http.MethodPatch,
+		cfg,
+	)
 
-	tourDays.HandleFunc("/{id}", handlers.TourDay.GetTourDayByID).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		tourDays,
+		"/{id}/confirm",
+		handlers.TourDayApplication.ConfirmTourDay,
+		http.MethodPatch,
+		cfg,
+	)
 
-	tourDays.HandleFunc("/{id}", handlers.TourDay.UpdateTourDay).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		tourDays,
+		"/{id}",
+		handlers.TourDay.CancelTourDay,
+		http.MethodDelete,
+		cfg,
+	)
 
-	tourDays.HandleFunc("/{id}/confirm", handlers.TourDayApplication.ConfirmTourDay).
-		Methods(http.MethodPatch)
+	// =====================
+	// ADMIN + GUIDE
+	// =====================
 
-	tourDays.HandleFunc("/{id}", handlers.TourDay.CancelTourDay).
-		Methods(http.MethodDelete)
+	HandleAdminOrGuide(
+		tourDays,
+		"/available-for-guide/{guide_id}",
+		handlers.TourDayApplication.GetTourDaysAvailableForGuide,
+		http.MethodGet,
+		cfg,
+	)
+
+	HandleAdminOrGuide(
+		tourDays,
+		"/by-reservation/{reservation_id}",
+		handlers.TourDay.GetTourDaysByReservationID,
+		http.MethodGet,
+		cfg,
+	)
+
+	HandleAdminOrGuide(
+		tourDays,
+		"/{id}",
+		handlers.TourDay.GetTourDayByID,
+		http.MethodGet,
+		cfg,
+	)
 }

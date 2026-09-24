@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,43 +11,115 @@ import (
 func registerGuideRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
 	guides := router.PathPrefix("/guides").Subrouter()
 
-	guides.HandleFunc("/{id}", handlers.Guide.GetGuideByID).
-		Methods(http.MethodGet)
+	// =====================
+	// ADMIN + GUIDE
+	// =====================
 
-	guides.HandleFunc("/user/{user_id}", handlers.Guide.GetGuideByUserID).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}",
+		handlers.Guide.GetGuideByID,
+		http.MethodGet,
+		cfg,
+	)
 
-	guides.HandleFunc("", handlers.GuideApplication.GetAllGuidesDetail).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		guides,
+		"/user/{user_id}",
+		handlers.Guide.GetGuideByUserID,
+		http.MethodGet,
+		cfg,
+	)
 
-	guides.HandleFunc("", handlers.GuideApplication.CreateGuide).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}",
+		handlers.GuideApplication.UpdateGuide,
+		http.MethodPatch,
+		cfg,
+	)
 
-	guides.HandleFunc("/{id}", handlers.GuideApplication.UpdateGuide).
-		Methods(http.MethodPatch)
+	// Languages
 
-	guides.HandleFunc("/{id}/languages", handlers.GuideApplication.GetLanguagesByGuideID).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/languages",
+		handlers.GuideApplication.GetLanguagesByGuideID,
+		http.MethodGet,
+		cfg,
+	)
 
-	guides.HandleFunc("/{id}/languages", handlers.GuideApplication.AddLanguageToGuide).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/languages",
+		handlers.GuideApplication.AddLanguageToGuide,
+		http.MethodPost,
+		cfg,
+	)
 
-	guides.HandleFunc("/{id}/languages/{language_id}", handlers.GuideApplication.RemoveLanguageFromGuide).
-		Methods(http.MethodDelete)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/languages/{language_id}",
+		handlers.GuideApplication.RemoveLanguageFromGuide,
+		http.MethodDelete,
+		cfg,
+	)
 
-	// Availabilities routes
-	guides.HandleFunc("/{id}/availabilities", handlers.GuideApplication.GetAvailabilitiesByGuideID).
-		Methods(http.MethodGet)
+	// Availabilities
 
-	guides.HandleFunc("/{id}/availabilities", handlers.GuideApplication.CreateAvailability).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/availabilities",
+		handlers.GuideApplication.GetAvailabilitiesByGuideID,
+		http.MethodGet,
+		cfg,
+	)
 
-	guides.HandleFunc("/{id}/availabilities/{availability_id}", handlers.GuideApplication.UpdateAvailability).
-		Methods(http.MethodPatch)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/availabilities",
+		handlers.GuideApplication.CreateAvailability,
+		http.MethodPost,
+		cfg,
+	)
 
-	guides.HandleFunc("/{id}/availabilities/{availability_id}", handlers.GuideApplication.DeleteAvailability).
-		Methods(http.MethodDelete)
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/availabilities/{availability_id}",
+		handlers.GuideApplication.UpdateAvailability,
+		http.MethodPatch,
+		cfg,
+	)
+
+	HandleAdminOrGuide(
+		guides,
+		"/{id}/availabilities/{availability_id}",
+		handlers.GuideApplication.DeleteAvailability,
+		http.MethodDelete,
+		cfg,
+	)
+
+	// =====================
+	// ADMIN ONLY
+	// =====================
+
+	HandleAdmin(
+		guides,
+		"",
+		handlers.GuideApplication.GetAllGuidesDetail,
+		http.MethodGet,
+		cfg,
+	)
+
+	HandleAdmin(
+		guides,
+		"",
+		handlers.GuideApplication.CreateGuide,
+		http.MethodPost,
+		cfg,
+	)
 }
