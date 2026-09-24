@@ -5,12 +5,15 @@ import (
 	reservationcustomersapp "inariops/internal/application/reservation_customers"
 	reservationsapp "inariops/internal/application/reservations"
 	tourdaysapp "inariops/internal/application/tour_days"
+	itineraryapp "inariops/internal/application/tour_days/itinerary"
+	placesapp "inariops/internal/application/tour_days/places"
 
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/languages"
 	"inariops/internal/modules/guides/zones"
+	"inariops/internal/modules/itinerary/activity"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -36,6 +39,8 @@ type Handlers struct {
 
 	Zone *zones.Handler
 
+	Activity *activity.Handler
+
 	ReservationApplication *reservationsapp.Handler
 
 	ReservationCustomerApplication *reservationcustomersapp.Handler
@@ -43,6 +48,10 @@ type Handlers struct {
 	TourDayApplication *tourdaysapp.Handler
 
 	GuideApplication *guidesapp.Handler
+
+	ItineraryApplication *itineraryapp.Handler
+
+	PlaceApplication *placesapp.Handler
 }
 
 func newHandlers(
@@ -87,6 +96,10 @@ func newHandlers(
 			services.Zone,
 		),
 
+		Activity: activity.NewHandler(
+			services.Activity,
+		),
+
 		// Application Handlers
 		ReservationApplication: reservationsapp.NewHandler(
 			services.ReservationApplication,
@@ -102,6 +115,14 @@ func newHandlers(
 
 		GuideApplication: guidesapp.NewHandler(
 			services.GuideApplication,
+		),
+
+		ItineraryApplication: itineraryapp.NewHandler(
+			services.ItineraryApplication,
+		),
+
+		PlaceApplication: placesapp.NewHandler(
+			services.PlaceApplication,
 		),
 	}
 }

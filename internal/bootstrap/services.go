@@ -5,12 +5,15 @@ import (
 	reservationcustomersapp "inariops/internal/application/reservation_customers"
 	reservationsapp "inariops/internal/application/reservations"
 	tourdaysapp "inariops/internal/application/tour_days"
+	itineraryapp "inariops/internal/application/tour_days/itinerary"
+	placesapp "inariops/internal/application/tour_days/places"
 
 	"inariops/internal/modules/auth"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/languages"
 	"inariops/internal/modules/guides/zones"
+	"inariops/internal/modules/itinerary/activity"
 	"inariops/internal/modules/tours/agencies"
 	"inariops/internal/modules/tours/reservations"
 	tourdays "inariops/internal/modules/tours/tour_days"
@@ -34,6 +37,8 @@ type Services struct {
 
 	Language *languages.Service
 
+	Activity *activity.Service
+
 	Zone *zones.Service
 
 	ReservationApplication *reservationsapp.Service
@@ -43,6 +48,10 @@ type Services struct {
 	TourDayApplication *tourdaysapp.Service
 
 	GuideApplication *guidesapp.Service
+
+	ItineraryApplication *itineraryapp.Service
+
+	PlaceApplication *placesapp.Service
 }
 
 func newServices(
@@ -95,6 +104,10 @@ func newServices(
 			repositories.Zone,
 		),
 
+		Activity: activity.NewService(
+			repositories.Activity,
+		),
+
 		// Application Services
 		ReservationApplication: reservationsapp.NewService(
 			repositories.Reservation,
@@ -126,6 +139,18 @@ func newServices(
 			repositories.Zone,
 			repositories.ZoneGuide,
 			repositories.Availability,
+		),
+
+		ItineraryApplication: itineraryapp.NewService(
+			repositories.TourDay,
+			repositories.Activity,
+			repositories.Place,
+			repositories.ItineraryItem,
+		),
+
+		PlaceApplication: placesapp.NewService(
+			repositories.Place,
+			repositories.Zone,
 		),
 	}
 }
