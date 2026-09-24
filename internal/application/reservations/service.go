@@ -221,13 +221,42 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 				continue
 			}
 
-			customer, err := customersRepo.GetCustomerByID(
-				*customerRequest.ID,
+			customer, err := customersRepo.GetCustomerByEmail(
+				customerRequest.Email,
 			)
+
+			switch {
+			case err == nil:
+				customersList = append(customersList, customer)
+				customerIDs = append(customerIDs, customer.ID)
+				continue
+
+			case err == sql.ErrNoRows:
+				// Customer does not exist, create it
+
+			default:
+				logger.Error(
+					"CreateReservation: failed to find customer by email %s: %v",
+					customerRequest.Email,
+					err,
+				)
+				return err
+			}
+
+			customer = customers.Customer{
+				ID:             uuid.New().String(),
+				FullName:       customerRequest.FullName,
+				DocumentNumber: customerRequest.DocumentNumber,
+				Phone:          customerRequest.Phone,
+				Email:          customerRequest.Email,
+				Age:            customerRequest.Age,
+				CreatedAt:      time.Now(),
+			}
+
+			err = customersRepo.CreateCustomer(customer)
 			if err != nil {
 				logger.Error(
-					"CreateReservation: failed to get customer %s: %v",
-					*customerRequest.ID,
+					"CreateReservation: failed to create customer: %v",
 					err,
 				)
 				return err

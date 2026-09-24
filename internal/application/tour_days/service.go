@@ -352,3 +352,20 @@ func (s *Service) setAssignmentStatusHistoryRegistry(
 
 	return assignmentRepo.AddAssignmentStatus(assignment)
 }
+
+func (s *Service) SetAssignmentStatusHistoryRegistry(
+	tourDayID string,
+	guideID string,
+	action string,
+	changedBy string,
+) error {
+	return s.setAssignmentStatusHistoryRegistry(
+		tourDayID,
+		guideID,
+		action,
+		changedBy,
+		s.tourDayRepo,
+		s.guideRepo,
+		s.repo,
+	)
+}
