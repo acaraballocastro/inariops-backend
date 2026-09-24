@@ -1,8 +1,9 @@
 package zones
 
 import (
-	"fmt"
 	"time"
+
+	appErrors "inariops/internal/shared/errors"
 
 	"github.com/google/uuid"
 )
@@ -24,9 +25,10 @@ func (s *Service) CreateZone(zone *CreateZoneRequest) (*Zone, error) {
 		UpdatedAt: time.Now(),
 	}
 
-	if _, isValid := s.ZoneValidations(newzone); !isValid {
-		return nil, fmt.Errorf("invalid zone data")
+	if err := s.ZoneValidations(newzone); err != nil {
+		return nil, err
 	}
+
 	return s.repo.CreateZone(newzone)
 }
 
@@ -40,7 +42,7 @@ func (s *Service) UpdateZone(zone *UpdateZoneRequest) error {
 		return err
 	}
 	if existingZone == nil {
-		return fmt.Errorf("zone with ID %s not found", zone.ID)
+		return appErrors.ErrZoneNotFound
 	}
 
 	existingZone.UpdatedAt = time.Now()
@@ -58,13 +60,15 @@ func (s *Service) ListZones() ([]*Zone, error) {
 	return s.repo.ListZones()
 }
 
-func (s *Service) ZoneValidations(zone *Zone) (*Zone, bool) {
+func (s *Service) ZoneValidations(zone *Zone) error {
 	existingZone, err := s.repo.GetZoneByName(zone.Name)
 	if err != nil {
-		return nil, false
+		return err
 	}
+
 	if existingZone != nil {
-		return existingZone, false
+		return appErrors.ErrInvalidZone
 	}
-	return nil, true
+
+	return nil
 }
