@@ -67,9 +67,11 @@ func (s *Service) GetGuideDetailByID(guideID string) (GuidesDetail, error) {
 	}
 
 	if guide == nil {
-		err := fmt.Errorf("guide not found")
-		logger.Error("GetGuideDetailByID: guide not found for guideID=%s: %v", guideID, err)
-		return GuidesDetail{}, err
+		logger.Error(
+			"GetGuideDetailByID: guide not found for guideID=%s",
+			guideID,
+		)
+		return GuidesDetail{}, appErrors.ErrGuideNotFound
 	}
 
 	languageGuides, err := s.languageGuidesRepository.GetLanguageGuideByGuideID(guide.ID)
@@ -87,9 +89,12 @@ func (s *Service) GetGuideDetailByID(guideID string) (GuidesDetail, error) {
 			return GuidesDetail{}, err
 		}
 		if language == nil {
-			err := fmt.Errorf("language not found")
-			logger.Error("GetGuideDetailByID: language not found id=%s for guideID=%s: %v", lg.LanguageID, guideID, err)
-			return GuidesDetail{}, err
+			logger.Error(
+				"GetGuideDetailByID: language not found id=%s for guideID=%s",
+				lg.LanguageID,
+				guideID,
+			)
+			return GuidesDetail{}, appErrors.ErrLanguageNotFound
 		}
 
 		languagesList = append(languagesList, *language)
@@ -110,9 +115,12 @@ func (s *Service) GetGuideDetailByID(guideID string) (GuidesDetail, error) {
 			return GuidesDetail{}, err
 		}
 		if zone == nil {
-			err := fmt.Errorf("zone not found")
-			logger.Error("GetGuideDetailByID: zone not found id=%s for guideID=%s: %v", zg.ZoneID, guideID, err)
-			return GuidesDetail{}, err
+			logger.Error(
+				"GetGuideDetailByID: zone not found id=%s for guideID=%s",
+				zg.ZoneID,
+				guideID,
+			)
+			return GuidesDetail{}, appErrors.ErrZoneNotFound
 		}
 
 		zonesList = append(zonesList, *zone)
@@ -150,9 +158,12 @@ func (s *Service) GetAllGuidesDetail() ([]GuidesDetail, error) {
 				return nil, err
 			}
 			if language == nil {
-				err := fmt.Errorf("language not found")
-				logger.Error("GetAllGuidesDetail: language not found id=%s for guideID=%s: %v", lg.LanguageID, guide.ID, err)
-				return nil, err
+				logger.Error(
+					"GetAllGuidesDetail: language not found id=%s for guideID=%s",
+					lg.LanguageID,
+					guide.ID,
+				)
+				return nil, appErrors.ErrLanguageNotFound
 			}
 
 			languagesList = append(languagesList, *language)
@@ -175,9 +186,12 @@ func (s *Service) GetAllGuidesDetail() ([]GuidesDetail, error) {
 				return nil, err
 			}
 			if zone == nil {
-				err := fmt.Errorf("zone not found")
-				logger.Error("GetAllGuidesDetail: zone not found id=%s for guideID=%s: %v", zg.ZoneID, guide.ID, err)
-				return nil, err
+				logger.Error(
+					"GetAllGuidesDetail: zone not found id=%s for guideID=%s",
+					zg.ZoneID,
+					guide.ID,
+				)
+				return nil, appErrors.ErrZoneNotFound
 			}
 
 			zonesList = append(zonesList, *zone)
@@ -201,9 +215,11 @@ func (s *Service) AddLanguageToGuide(guideID, languageCode string) error {
 		return err
 	}
 	if guide.ID == "" {
-		err := fmt.Errorf("guide not found")
-		logger.Error("AddLanguageToGuide: guide not found id=%s: %v", guideID, err)
-		return err
+		logger.Error(
+			"AddLanguageToGuide: guide not found id=%s",
+			guideID,
+		)
+		return appErrors.ErrGuideNotFound
 	}
 
 	// Check if the language exists
@@ -213,9 +229,12 @@ func (s *Service) AddLanguageToGuide(guideID, languageCode string) error {
 		return err
 	}
 	if language == nil {
-		err := fmt.Errorf("language not found")
-		logger.Error("AddLanguageToGuide: language not found code=%s for guideID=%s: %v", languageCode, guideID, err)
-		return err
+		logger.Error(
+			"AddLanguageToGuide: language not found code=%s for guideID=%s",
+			languageCode,
+			guideID,
+		)
+		return appErrors.ErrLanguageNotFound
 	}
 
 	// Check if the language-guide association already exists
@@ -225,9 +244,12 @@ func (s *Service) AddLanguageToGuide(guideID, languageCode string) error {
 		return err
 	}
 	if exists {
-		err := fmt.Errorf("language already associated with the guide")
-		logger.Error("AddLanguageToGuide: association already exists guideID=%s languageID=%s: %v", guideID, language.ID, err)
-		return err
+		logger.Error(
+			"AddLanguageToGuide: language already associated guideID=%s languageID=%s",
+			guideID,
+			language.ID,
+		)
+		return appErrors.ErrLanguageAlreadyAssigned
 	}
 
 	languageGuide := &languageguides.LanguageGuide{
@@ -254,7 +276,7 @@ func (s *Service) RemoveLanguageFromGuide(guideID, languageCode string) error {
 	if guide.ID == "" {
 		err := fmt.Errorf("guide not found")
 		logger.Error("RemoveLanguageFromGuide: guide not found id=%s: %v", guideID, err)
-		return err
+		return appErrors.ErrGuideNotFound
 	}
 
 	// Check if the language exists
@@ -266,7 +288,7 @@ func (s *Service) RemoveLanguageFromGuide(guideID, languageCode string) error {
 	if language == nil {
 		err := fmt.Errorf("language not found")
 		logger.Error("RemoveLanguageFromGuide: language not found code=%s for guideID=%s: %v", languageCode, guideID, err)
-		return err
+		return appErrors.ErrLanguageNotFound
 	}
 
 	// Check if the language-guide association exists
@@ -276,9 +298,12 @@ func (s *Service) RemoveLanguageFromGuide(guideID, languageCode string) error {
 		return err
 	}
 	if !exists {
-		err := fmt.Errorf("language is not associated with the guide")
-		logger.Error("RemoveLanguageFromGuide: association not found guideID=%s languageCode=%s: %v", guideID, languageCode, err)
-		return err
+		logger.Error(
+			"RemoveLanguageFromGuide: language not associated guideID=%s languageCode=%s",
+			guideID,
+			languageCode,
+		)
+		return appErrors.ErrLanguageNotAssigned
 	}
 
 	err = s.languageGuidesRepository.DeleteLanguageGuide(guideID, language.ID)
@@ -298,9 +323,11 @@ func (s *Service) GetLanguagesByGuideID(guideID string) ([]languages.Language, e
 		return nil, err
 	}
 	if guide.ID == "" {
-		err := fmt.Errorf("guide not found")
-		logger.Error("GetLanguagesByGuideID: guide not found id=%s: %v", guideID, err)
-		return nil, err
+		logger.Error(
+			"GetLanguagesByGuideID: guide not found id=%s",
+			guideID,
+		)
+		return nil, appErrors.ErrGuideNotFound
 	}
 
 	languageGuides, err := s.languageGuidesRepository.GetLanguageGuideByGuideID(guideID)
