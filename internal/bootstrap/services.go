@@ -56,10 +56,12 @@ type Services struct {
 
 func newServices(
 	repositories *Repositories,
+	jwtManager *auth.JWTManager,
 ) *Services {
 
 	authService := auth.NewService(
 		repositories.Auth,
+		jwtManager,
 	)
 
 	guideService := guides.NewService(

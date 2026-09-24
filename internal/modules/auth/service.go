@@ -10,11 +10,12 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo       *Repository
+	jwtManager *JWTManager
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, jwtManager *JWTManager) *Service {
+	return &Service{repo: repo, jwtManager: jwtManager}
 }
 
 func (s *Service) Login(email, password string) (LoginResponse, error) {
@@ -44,7 +45,7 @@ func (s *Service) Login(email, password string) (LoginResponse, error) {
 		return LoginResponse{}, errors.ErrUnauthorized
 	}
 
-	token, err := GenerateToken(user.ID, string(user.Role))
+	token, err := s.jwtManager.GenerateToken(user.ID, string(user.Role))
 	if err != nil {
 		return LoginResponse{}, err
 	}

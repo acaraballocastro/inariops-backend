@@ -7,12 +7,28 @@ import (
 
 	"inariops/internal/api"
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"inariops/internal/db"
+	"inariops/internal/modules/auth"
 	"inariops/internal/shared/logger"
 	"inariops/internal/shared/middleware"
 )
 
 func main() {
+
+	// =====================
+	// Configuration
+	// =====================
+
+	cfg := config.Load()
+
+	// =====================
+	// Authentication
+	// =====================
+
+	jwtManager := auth.NewJWTManager(
+		cfg.JWTSecret,
+	)
 
 	// =====================
 	// Database
@@ -24,13 +40,20 @@ func main() {
 	// Application
 	// =====================
 
-	app := bootstrap.New(dbConn)
+	app := bootstrap.New(
+		dbConn,
+		jwtManager,
+	)
 
 	// =====================
 	// Router
 	// =====================
 
-	router := api.NewRouter(app.Handlers)
+	router := api.NewRouter(
+		app.Handlers,
+		cfg,
+		jwtManager,
+	)
 
 	router.Use(middleware.CORS)
 	router.Use(logger.Logging)
@@ -48,14 +71,15 @@ func main() {
 	// HTTP Server
 	// =====================
 
-	log.Println("InariOps running on :9142")
+	log.Println("InariOps running on :9142 on " + cfg.AppEnv + " mode")
 
 	server := &http.Server{
 		Addr:    ":9142",
 		Handler: router,
 	}
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil &&
+		err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
