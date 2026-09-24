@@ -2,6 +2,8 @@ package bootstrap
 
 import (
 	"database/sql"
+
+	"inariops/internal/modules/auth"
 )
 
 type App struct {
@@ -10,11 +12,17 @@ type App struct {
 	Handlers     *Handlers
 }
 
-func New(db *sql.DB) *App {
+func New(
+	db *sql.DB,
+	jwtManager *auth.JWTManager,
+) *App {
 
 	repositories := newRepositories(db)
 
-	services := newServices(repositories)
+	services := newServices(
+		repositories,
+		jwtManager,
+	)
 
 	handlers := newHandlers(services)
 

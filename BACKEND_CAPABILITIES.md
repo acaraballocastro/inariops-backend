@@ -1,644 +1,1107 @@
 # Capacidades del backend InariOps
 
-Este documento describe exclusivamente la funcionalidad implementada en Go. No incluye HTML, JavaScript ni funcionalidades del frontend.
+> Estado revisado sobre la rama `itinerary` del backend `inariops-backend`.
 
-## 1. Información general
+Este documento describe exclusivamente la funcionalidad actualmente implementada en el backend Go. No se contabilizan funcionalidades existentes únicamente en el frontend.
 
-- API HTTP bajo el prefijo `/api/v1`.
-- Endpoint de salud: `GET /health`.
-- Servidor HTTP en el puerto `9142`.
-- CORS habilitado.
-- Soporte para peticiones `OPTIONS`.
-- Respuestas JSON y handlers generales para errores `404` y `405`.
-- Los endpoints no tienen actualmente un middleware global que valide JWT o permisos.
+---
 
-## 2. Autenticación
+# 1. Estado general
 
-Rutas definidas en `internal/api/auth_routes.go`.
+El backend dispone actualmente de una API REST bajo `/api/v1`, organizada alrededor de:
 
-| Método | Ruta | Funcionalidad |
+- Go.
+- PostgreSQL.
+- Gorilla Mux.
+- Arquitectura por módulos.
+- Separación entre API, application services y módulos de dominio.
+- Repositories para persistencia.
+- DTOs para entrada/salida.
+- Servicios de aplicación para operaciones complejas.
+- Middleware y sistema común de respuestas/errores.
+- Logging.
+- Workers para procesos automáticos.
+
+La rama `itinerary` contiene actualmente las siguientes áreas funcionales:
+
+- Autenticación.
+- Usuarios.
+- Guías.
+- Disponibilidad de guías.
+- Clientes.
+- Agencias.
+- Idiomas.
+- Zonas.
+- Reservas.
+- Días de tour.
+- Asignación de guías.
+- Firma.
+- Voucher.
+- Actividades.
+- Places.
+- Itinerarios.
+- Sincronización de estados.
+- Workers automáticos.
+
+---
+
+# 2. Resumen de capacidades
+
+| # | Capacidad | Estado |
 |---|---|---|
-| `POST` | `/api/v1/auth/` | Iniciar sesión con email y contraseña. |
-| `PATCH` | `/api/v1/auth/` | Cambiar la contraseña de un usuario. |
+| 1 | Infraestructura HTTP / API | ✅ Implementado |
+| 2 | Autenticación | 🟡 Parcial |
+| 3 | Usuarios | ✅ Implementado |
+| 4 | Guías | ✅ Implementado |
+| 5 | Disponibilidad de guías | ✅ Implementado |
+| 6 | Clientes | ✅ Implementado |
+| 7 | Agencias | ✅ Implementado |
+| 8 | Idiomas | ✅ Implementado |
+| 9 | Zonas | ✅ Implementado |
+| 10 | Reservas | ✅ Implementado |
+| 11 | Días de tour | ✅ Implementado |
+| 12 | Asignación de guías | ✅ Implementado |
+| 13 | Estados de reserva/tour | 🟡 Parcial |
+| 14 | Firma | 🟡 Parcial |
+| 15 | Voucher | 🟡 Parcial |
+| 16 | Actividades | ✅ Implementado |
+| 17 | Places | ✅ Implementado |
+| 18 | Itinerarios | ✅ Implementado |
+| 19 | Workers automáticos | 🟡 Parcial |
+| 20 | Historial / auditoría | 🟡 Parcial |
+| 21 | Incidencias | ❌ Pendiente |
+| 22 | Notificaciones | ❌ Pendiente |
+| 23 | Archivos / documentos | ❌ Pendiente |
+| 24 | Email | ❌ Pendiente |
+| 25 | RBAC / permisos | ❌ Pendiente |
+| 26 | Búsqueda avanzada / filtros | 🟡 Parcial |
+| 27 | Paginación | ❌ Pendiente |
+| 28 | Testing | 🟡 Parcial |
+| 29 | Observabilidad | 🟡 Parcial |
+| 30 | Integraciones externas | ❌ Pendiente |
+
+---
+
+# 3. Infraestructura HTTP / API
+
+## Estado: ✅ Implementado
+
+El router principal está definido en:
+
+`internal/api/routes.go`
+
+La API utiliza:
+
+```text
+/api/v1
+```
+
+Actualmente están registradas las siguientes áreas:
+
+```text
+/auth
+/users
+/reservations
+/tour-days
+/activities
+/itinerary
+/places
+/guides
+/customers
+/agencies
+/languages
+/zones
+```
+
+También existe:
+
+```http
+GET /api/v1/health
+```
+
+Se dispone de:
+
+- CORS.
+- OPTIONS / preflight.
+- Respuestas JSON.
+- Handler global para 404.
+- Handler global para 405.
+- Logging.
+
+---
+
+# 4. Autenticación
+
+## Estado: 🟡 Parcial
+
+Actualmente existe:
+
+```http
+POST  /api/v1/auth/
+PATCH /api/v1/auth/
+```
 
 El login:
 
-- Comprueba que el usuario exista y esté activo.
-- Valida la contraseña mediante bcrypt.
-- Genera un JWT.
-- Devuelve el ID, nombre, email, rol y si debe cambiar la contraseña.
+- Busca el usuario por email.
+- Comprueba que esté activo.
+- Valida contraseña mediante bcrypt.
+- Genera JWT.
+- Devuelve información básica del usuario.
+- Informa de si debe cambiar la contraseña.
 
-El cambio de contraseña:
+También existe cambio de contraseña con validación de contraseña anterior y reglas de complejidad.
 
-- Comprueba la contraseña anterior.
-- Exige una nueva contraseña con reglas de complejidad.
-- Actualiza la contraseña almacenada.
+### Pendiente
 
-No existe endpoint de logout ni recuperación de contraseña.
+- Middleware global de autenticación JWT.
+- Protección real de las rutas.
+- Autorización por rol.
+- Logout.
+- Recuperación de contraseña.
+- Reset de contraseña.
+- Gestión segura/configurable del secreto JWT.
 
-## 3. Usuarios
+Por tanto, **existe autenticación pero todavía no existe un sistema completo de autorización de la API**.
 
-Rutas definidas en `internal/api/user_routes.go`.
+---
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/users` | Listar usuarios. |
-| `POST` | `/api/v1/users` | Crear usuario. |
-| `GET` | `/api/v1/users/guides` | Listar usuarios que son guías. |
-| `GET` | `/api/v1/users/{id}` | Obtener un usuario por ID. |
-| `PATCH` | `/api/v1/users/{id}` | Actualizar un usuario. |
-| `DELETE` | `/api/v1/users/{id}` | Desactivar un usuario. |
+# 5. Usuarios
 
-La creación de usuarios:
+## Estado: ✅ Implementado
 
-- Acepta los roles `ADMIN` y `GUIDE`.
-- Crea las credenciales del usuario.
-- Para un guía, crea automáticamente su registro de guía.
-- Inicializa `MaxToursPerDay` en `1`.
+Endpoints:
 
-El borrado implementado para usuarios es lógico mediante desactivación. Existe código interno para borrar físicamente, pero no una ruta pública para ello.
+```http
+GET    /api/v1/users
+POST   /api/v1/users
+GET    /api/v1/users/guides
+GET    /api/v1/users/{id}
+PATCH  /api/v1/users/{id}
+DELETE /api/v1/users/{id}
+```
 
-## 4. Reservas
+Soporta:
 
-Rutas definidas en `internal/api/reservations_routes.go`.
+- Creación de usuarios.
+- Roles `ADMIN` y `GUIDE`.
+- Credenciales.
+- Actualización.
+- Desactivación.
+- Creación automática del registro de guía cuando corresponde.
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/reservations` | Listar reservas. |
-| `POST` | `/api/v1/reservations` | Crear una reserva completa. |
-| `GET` | `/api/v1/reservations/{code}` | Obtener una reserva por código. |
-| `GET` | `/api/v1/reservations/details/{code}` | Obtener el detalle completo de una reserva. |
-| `PATCH` | `/api/v1/reservations/{code}` | Actualizar una reserva. |
-| `PATCH` | `/api/v1/reservations/{code}/signature` | Actualizar el estado de firma de una reserva. |
-| `PATCH` | `/api/v1/reservations/{code}/voucher` | Actualizar el estado de voucher de una reserva. |
-| `DELETE` | `/api/v1/reservations/{code}` | Cancelar una reserva. |
-| `DELETE` | `/api/v1/reservations/erase/{code}` | Borrar físicamente una reserva. |
-| `GET` | `/api/v1/reservations/{code}/customers` | Listar clientes de una reserva. |
+El DELETE implementado para usuarios es una desactivación lógica.
 
-La creación de una reserva:
+---
 
-- Valida que la agencia exista.
-- Genera el identificador y el código de la reserva.
-- Inicializa el estado como `PENDING_ASSIGNMENT`.
-- Inicializa la firma como `NOT_SENT`.
-- Inicializa el voucher como `NOT_GENERATED`.
-- Crea automáticamente un día de tour por cada fecha del intervalo de la reserva.
-- Crea clientes nuevos o reutiliza clientes existentes por email.
-- Crea las relaciones entre la reserva y sus clientes.
+# 6. Guías
 
-La actualización de una reserva:
+## Estado: ✅ Implementado
 
-- Actualiza campos parciales.
-- Valida la agencia si se modifica.
-- Sincroniza los clientes asociados.
-- Añade clientes nuevos.
-- Mantiene clientes existentes.
-- Elimina las relaciones que ya no aparecen en la lista recibida.
-- Si recibe una lista vacía de clientes, elimina todas las asociaciones.
+Endpoints:
 
-La cancelación normal es lógica: cambia la reserva a `CANCELLED` y cancela sus días. La operación `erase` elimina físicamente la reserva, sus días y sus relaciones.
+```http
+GET    /api/v1/guides
+POST   /api/v1/guides
+GET    /api/v1/guides/{id}
+PATCH  /api/v1/guides/{id}
+GET    /api/v1/guides/user/{user_id}
 
-La firma y el voucher ya disponen de endpoints para actualizar sus estados. La generación del PDF, el envío de emails y la integración externa de firma siguen pendientes.
+GET    /api/v1/guides/{id}/languages
+POST   /api/v1/guides/{id}/languages
+DELETE /api/v1/guides/{id}/languages/{language_id}
+```
 
-## 5. Días de tour
+La creación de una guía contempla:
 
-Rutas definidas en `internal/api/tourday_routes.go`.
+- Usuario.
+- Perfil de guía.
+- Idiomas.
+- Zonas.
+- Información relacionada.
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `PATCH` | `/api/v1/tour-days/assign-guide` | Asignar guía a uno o varios días. |
-| `GET` | `/api/v1/tour-days/by-reservation/{reservation_id}` | Listar días de una reserva. |
-| `GET` | `/api/v1/tour-days/available-for-guide/{guide_id}` | Listar días elegibles para un guía según disponibilidad y límite diario. |
-| `POST` | `/api/v1/tour-days` | Crear un día de tour. |
-| `GET` | `/api/v1/tour-days/{id}` | Obtener un día por ID. |
-| `PATCH` | `/api/v1/tour-days/{id}` | Actualizar un día. |
-| `PATCH` | `/api/v1/tour-days/{id}/confirm` | Confirmar explícitamente un día preasignado. |
-| `DELETE` | `/api/v1/tour-days/{id}` | Cancelar un día. |
+La actualización permite sincronizar asociaciones de idiomas y zonas.
 
-Un día de tour puede contener:
+---
 
-- Título.
-- Fecha y hora.
+# 7. Disponibilidad de guías
+
+## Estado: ✅ Implementado
+
+La rama `itinerary` incorpora funcionalidad específica para disponibilidad.
+
+Incluye:
+
+- Creación de disponibilidades.
+- Consulta.
+- Actualización.
+- Eliminación.
+- Detección de conflictos.
+- Comprobación de disponibilidad durante la asignación.
+
+También existe lógica para determinar los días de tour disponibles para un guía.
+
+---
+
+# 8. Clientes
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+GET    /api/v1/customers
+POST   /api/v1/customers
+GET    /api/v1/customers/{id}
+PATCH  /api/v1/customers/{id}
+DELETE /api/v1/customers/{id}
+```
+
+El backend también dispone de lógica de búsqueda por:
+
+- Nombre.
+- Documento.
+- Teléfono.
+- Email.
+
+Los clientes pueden crearse/reutilizarse automáticamente durante la creación de una reserva.
+
+---
+
+# 9. Agencias
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+GET    /api/v1/agencies
+POST   /api/v1/agencies
+GET    /api/v1/agencies/{id}
+PATCH  /api/v1/agencies/{id}
+DELETE /api/v1/agencies/{id}
+```
+
+La lista permite filtros básicos como:
+
+- Nombre.
+- Email.
+- Estado activo.
+
+Las reservas validan la existencia de la agencia asociada.
+
+---
+
+# 10. Idiomas
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+GET    /api/v1/languages
+POST   /api/v1/languages
+GET    /api/v1/languages/{code}
+PATCH  /api/v1/languages/{code}
+DELETE /api/v1/languages/{code}
+```
+
+Existe:
+
+- CRUD.
+- Validación de códigos duplicados.
+- Asociación con guías.
+
+---
+
+# 11. Zonas
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+GET    /api/v1/zones
+POST   /api/v1/zones
+GET    /api/v1/zones/{name}
+PATCH  /api/v1/zones/{id}
+DELETE /api/v1/zones/{name}
+```
+
+Las zonas también se utilizan dentro de la lógica de guías y disponibilidad.
+
+---
+
+# 12. Reservas
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+GET    /api/v1/reservations
+POST   /api/v1/reservations
+
+GET    /api/v1/reservations/{code}
+GET    /api/v1/reservations/details/{code}
+
+PATCH  /api/v1/reservations/{code}
+
+PATCH  /api/v1/reservations/{code}/signature
+PATCH  /api/v1/reservations/{code}/voucher
+
+DELETE /api/v1/reservations/{code}
+DELETE /api/v1/reservations/erase/{code}
+
+GET    /api/v1/reservations/{code}/customers
+```
+
+La creación de una reserva realiza varias operaciones relacionadas:
+
+1. Validación de agencia.
+2. Generación de ID.
+3. Generación de código.
+4. Inicialización del estado.
+5. Inicialización del estado de firma.
+6. Inicialización del voucher.
+7. Creación automática de los días de tour.
+8. Creación/reutilización de clientes.
+9. Creación de relaciones reserva-cliente.
+
+La actualización permite modificar parcialmente la reserva y sincronizar los clientes asociados.
+
+También existe:
+
+- Cancelación lógica.
+- Eliminación física.
+- Actualización independiente de firma.
+- Actualización independiente de voucher.
+
+---
+
+# 13. Días de tour
+
+## Estado: ✅ Implementado
+
+Endpoints:
+
+```http
+POST   /api/v1/tour-days
+GET    /api/v1/tour-days/{id}
+PATCH  /api/v1/tour-days/{id}
+DELETE /api/v1/tour-days/{id}
+
+GET    /api/v1/tour-days/by-reservation/{reservation_id}
+
+GET    /api/v1/tour-days/available-for-guide/{guide_id}
+
+PATCH  /api/v1/tour-days/assign-guide
+PATCH  /api/v1/tour-days/unassign-guide
+
+PATCH  /api/v1/tour-days/{id}/confirm
+```
+
+Un día de tour soporta información como:
+
+- Fecha.
+- Hora.
 - Duración.
 - Zona.
 - Guía.
-- Número de personas.
+- Personas.
 - Punto de encuentro.
-- Hotel del guía.
-- Hotel del cliente.
-- Notas de responsabilidad para guía y cliente.
+- Hoteles.
+- Notas.
 - Remuneración.
 - Estado.
-- Estado del voucher.
+- Voucher.
 
-La creación inicializa el día como `PENDING_ASSIGNMENT` y el voucher como `NOT_GENERATED`.
+Además, el backend permite trabajar con múltiples días por reserva.
 
-La asignación de guía:
+---
 
-- Puede aplicarse a uno o varios días.
-- Cambia el estado a `GUIDE_PREASSIGNED`.
-- Registra historial de asignación.
+# 14. Asignación de guías
 
-Existe un servicio y una ruta separada para desasignar guías y devolver el día a `PENDING_ASSIGNMENT`.
+## Estado: ✅ Implementado
 
-La cancelación es lógica y cambia el día a `CANCELLED`.
+Actualmente existe una capa de aplicación específica para operaciones de tour days.
 
-## 6. Guías
+La asignación permite:
 
-Rutas definidas en `internal/api/guides_routes.go`.
+- Asignar uno o varios días.
+- Comprobar disponibilidad.
+- Comprobar límites diarios.
+- Preasignar guía.
+- Confirmar posteriormente.
+- Desasignar.
+- Registrar historial.
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/guides` | Listar guías con información enriquecida. |
-| `POST` | `/api/v1/guides` | Crear una guía completa. |
-| `GET` | `/api/v1/guides/{id}` | Obtener una guía por ID. |
-| `PATCH` | `/api/v1/guides/{id}` | Actualizar una guía. |
-| `GET` | `/api/v1/guides/user/{user_id}` | Obtener una guía por usuario. |
-| `GET` | `/api/v1/guides/{id}/languages` | Listar idiomas de una guía. |
-| `POST` | `/api/v1/guides/{id}/languages` | Añadir un idioma a una guía. |
-| `DELETE` | `/api/v1/guides/{id}/languages/{language_id}` | Eliminar un idioma de una guía. |
+La disponibilidad del guía está integrada en el proceso.
 
-La creación completa:
+---
 
-- Crea un usuario con rol `GUIDE`.
-- Crea el registro de guía.
-- Asocia idiomas.
-- Asocia zonas.
-- Devuelve información enriquecida.
+# 15. Estados de reservas y días
 
-La actualización puede sincronizar completamente los idiomas y las zonas: elimina asociaciones ausentes y añade las nuevas.
+## Estado: 🟡 Parcial
 
-Existe funcionalidad interna para añadir zonas individualmente, pero no hay un endpoint HTTP específico para ello.
+Existe una lógica de estados relativamente completa.
 
-## 7. Clientes
+Se manejan estados como:
 
-Rutas definidas en `internal/api/customer_routes.go`.
+```text
+PENDING
+PENDING_ASSIGNMENT
+GUIDE_PREASSIGNED
+PAYMENT_PENDING
+PARTIALLY_CONFIRMED
+CONFIRMED
+COMPLETED
+CANCELLED
+FORCE_MAJEURE_CANCELLED
+```
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/customers` | Listar clientes. |
-| `POST` | `/api/v1/customers` | Crear cliente. |
-| `GET` | `/api/v1/customers/{id}` | Obtener cliente por ID. |
-| `PATCH` | `/api/v1/customers/{id}` | Actualizar cliente. |
-| `DELETE` | `/api/v1/customers/{id}` | Eliminar cliente. |
+También existen estados independientes para:
 
-El sistema también puede:
+### Firma
 
-- Buscar clientes por nombre.
-- Buscar por documento.
-- Buscar por teléfono.
-- Buscar por email.
-- Limitar la búsqueda a 20 resultados.
-- Crear o reutilizar clientes automáticamente al crear reservas.
+```text
+NOT_SENT
+SENT
+SIGNED
+REJECTED
+```
 
-La búsqueda avanzada existe internamente, pero no está conectada a una ruta HTTP propia.
+### Voucher
 
-## 8. Agencias
+```text
+NOT_GENERATED
+GENERATED
+PARTIALLY_SENT
+SENT
+```
 
-Rutas definidas en `internal/api/agency_routes.go`.
+También existe un resolver para determinar el estado global de una reserva a partir de sus días.
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/agencies` | Listar agencias. |
-| `POST` | `/api/v1/agencies` | Crear agencia. |
-| `GET` | `/api/v1/agencies/{id}` | Obtener agencia por ID. |
-| `PATCH` | `/api/v1/agencies/{id}` | Actualizar agencia. |
-| `DELETE` | `/api/v1/agencies/{id}` | Eliminar agencia. |
+### Pendiente
 
-La lista admite filtros por:
+La máquina de estados todavía necesita terminar de conectarse con todos los procesos de negocio.
 
-- `name`.
-- `email`.
-- `is_active`.
+---
 
-La creación:
+# 16. Firma
 
-- Genera el ID.
-- Comprueba que no exista el email.
-- Fuerza la agencia a estado activo inicialmente.
+## Estado: 🟡 Parcial
 
-## 9. Idiomas
+Actualmente existe:
 
-Rutas definidas en `internal/api/language_routes.go`.
+```http
+PATCH /api/v1/reservations/{code}/signature
+```
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/languages` | Listar idiomas. |
-| `POST` | `/api/v1/languages` | Crear idioma. |
-| `GET` | `/api/v1/languages/{code}` | Obtener idioma por código. |
-| `PATCH` | `/api/v1/languages/{code}` | Actualizar idioma. |
-| `DELETE` | `/api/v1/languages/{code}` | Eliminar idioma. |
+Permite modificar el estado de firma de la reserva.
 
-Los idiomas nuevos se crean activos y no se permiten códigos duplicados.
+### Pendiente
 
-## 10. Zonas
+- Generación/envío real de documentos.
+- Integración con proveedor externo de firma.
+- Callback/webhook.
+- Seguimiento completo del proceso.
+- Gestión de documentos firmados.
 
-Rutas definidas en `internal/api/zone_routes.go`.
+---
 
-| Método | Ruta | Funcionalidad |
-|---|---|---|
-| `GET` | `/api/v1/zones` | Listar zonas. |
-| `POST` | `/api/v1/zones` | Crear zona. |
-| `GET` | `/api/v1/zones/{name}` | Obtener zona por nombre. |
-| `PATCH` | `/api/v1/zones/{id}` | Actualizar zona. |
-| `DELETE` | `/api/v1/zones/{name}` | Eliminar zona. |
+# 17. Voucher
 
-Las zonas nuevas se crean activas y no se permiten nombres duplicados.
+## Estado: 🟡 Parcial
 
-## 11. Estados del dominio
+Existe:
 
-### Estados de reserva y día
+```http
+PATCH /api/v1/reservations/{code}/voucher
+```
 
-- `PENDING`
-- `PENDING_ASSIGNMENT`
-- `GUIDE_PREASSIGNED`
-- `PAYMENT_PENDING`
-- `PARTIALLY_CONFIRMED`
-- `CONFIRMED`
-- `COMPLETED`
-- `CANCELLED`
-- `FORCE_MAJEURE_CANCELLED`
+y un estado específico de voucher.
 
-### Estados de firma
+Por tanto, el **workflow de estado está iniciado**.
 
-- `NOT_SENT`
-- `SENT`
-- `SIGNED`
-- `REJECTED`
+### Pendiente
 
-### Estados de voucher
+- Generación del PDF.
+- Plantilla definitiva.
+- Almacenamiento del documento.
+- Envío por email.
+- Tracking completo de entrega.
+- Integración con el sistema externo que corresponda.
 
-- `NOT_GENERATED`
-- `GENERATED`
-- `PARTIALLY_SENT`
-- `SENT`
+---
 
-### Transiciones implementadas
+# 18. Actividades
 
-- Crear reserva o día: `PENDING_ASSIGNMENT`.
-- Asignar guía: `GUIDE_PREASSIGNED`.
-- Confirmar día preasignado: `GUIDE_CONFIRMED`.
-- Cuando todos los días están `GUIDE_CONFIRMED`, sincronizar la reserva a `CONFIRMED`.
-- Desasignar guía: `PENDING_ASSIGNMENT`.
-- Cancelar reserva o día: `CANCELLED`.
-- Expirar una asignación: `PAYMENT_PENDING`.
-- Sincronizar el estado de la reserva a partir de sus días.
+## Estado: ✅ Implementado
 
-Existe un resolver de estados capaz de devolver un estado común o `PENDING` cuando los días tienen estados diferentes, aunque no está completamente conectado al flujo actual.
+Esta es una de las funcionalidades incorporadas recientemente.
 
-## 12. Workers automáticos
+Endpoints:
 
-Los workers se inician automáticamente con el servidor y se ejecutan aproximadamente cada minuto.
+```http
+GET    /api/v1/activities
+GET    /api/v1/activities/{id}
+POST   /api/v1/activities
+PATCH  /api/v1/activities/{id}
+DELETE /api/v1/activities/{id}
+```
+
+Existe una implementación separada con:
+
+- Handler.
+- Service.
+- Repository.
+- DTOs.
+- Persistencia.
+
+Por tanto, **Activities ya forma parte del backend funcional de la rama `itinerary`**.
+
+---
+
+# 19. Places
+
+## Estado: ✅ Implementado
+
+Los places están relacionados directamente con un día de tour.
+
+Endpoints:
+
+```http
+GET    /api/v1/tour-days/{tour_day_id}/places
+POST   /api/v1/tour-days/{tour_day_id}/places
+
+PATCH  /api/v1/tour-days/{tour_day_id}/places/{place_id}
+DELETE /api/v1/tour-days/{tour_day_id}/places/{place_id}
+```
+
+La implementación se encuentra separada dentro de la capa de aplicación de `tour_days`.
+
+Esto permite asociar lugares concretos a cada día del tour.
+
+---
+
+# 20. Itinerarios
+
+## Estado: ✅ Implementado
+
+Los itinerarios también están vinculados a un día de tour.
+
+Endpoints:
+
+```http
+GET    /api/v1/tour-days/{tour_day_id}/itinerary
+POST   /api/v1/tour-days/{tour_day_id}/itinerary
+
+PATCH  /api/v1/tour-days/{tour_day_id}/itinerary/{item_id}
+DELETE /api/v1/tour-days/{tour_day_id}/itinerary/{item_id}
+```
+
+La implementación incluye una capa específica de aplicación para itinerary.
+
+Por tanto, el backend ya soporta:
+
+```text
+Tour Day
+ ├── Places
+ └── Itinerary
+      └── Itinerary Items
+```
+
+y Activities existe como catálogo independiente que puede utilizarse dentro de la lógica de itinerarios.
+
+---
+
+# 21. Workers automáticos
+
+## Estado: 🟡 Parcial
+
+Existen workers ejecutados desde el backend para procesos automáticos.
+
+Entre ellos:
 
 ### Expiración de asignaciones
 
-Busca días en estado `GUIDE_PREASSIGNED` cuya actualización tenga más de 24 horas.
+Comprueba periódicamente asignaciones preasignadas que hayan superado el límite temporal establecido.
 
-Cuando los encuentra:
+### Sincronización de estados
 
-- Los cambia a `PAYMENT_PENDING`.
-- Registra el historial.
-- Usa `SYSTEM` como actor.
-- Guarda la razón `Guide assignment expired`.
+Recalcula el estado de las reservas a partir de sus días.
 
-### Sincronización de reservas
+Esto significa que ya existe una primera capa de automatización backend.
 
-- Carga las reservas.
-- Obtiene los días de cada reserva.
-- Recalcula el estado general.
-- Actualiza la reserva si el estado cambió.
+### Pendiente
 
-## 13. Funcionalidad interna sin endpoint público
+- Mayor cobertura de procesos.
+- Sistema de jobs más robusto.
+- Retries.
+- Observabilidad específica.
+- Gestión de errores persistentes.
 
-Existe código para las siguientes operaciones, pero no hay una ruta HTTP pública conectada:
+---
 
-- Búsqueda avanzada de clientes.
-- Borrado físico de usuarios.
-- Obtener detalle enriquecido de una guía individual.
-- Añadir una zona individual a una guía.
-- Añadir clientes explícitamente a una reserva.
-- Eliminar clientes explícitamente de una reserva.
-- Registrar manualmente historial de días.
-- Borrar físicamente un día de tour.
-- Obtener reservas por ID de agencia; la implementación actual devuelve `ErrNotFound`.
-- Logout.
-- Recuperación o restablecimiento de contraseña.
-- Integración externa completa de firma, incluyendo envío y callback.
-- Generación de vouchers PDF desde plantilla HTML y envío por email.
-- Paginación y filtros avanzados de reservas.
+# 22. Historial / auditoría
 
-## 14. Incidencias conocidas de rutas
+## Estado: 🟡 Parcial
 
-- Algunas operaciones de actualización usan el ID enviado en el cuerpo en lugar del parámetro de la URL.
-- La configuración JWT utiliza un secreto definido directamente en el código.
-- Aunque se generan JWT, no hay validación global del header `Authorization`.
+Existe historial asociado a operaciones importantes, especialmente en:
 
-## 15. Comparación con el alcance objetivo
+- Asignación de guías.
+- Desasignación.
+- Expiración de asignaciones.
+- Estados de tour days.
 
-La estimación se refiere únicamente al backend actual. No se han contado HTML, JavaScript ni funcionalidades simuladas del frontend.
+El sistema registra información como:
 
-### Método de estimación
+- Actor.
+- Acción.
+- Razón.
+- Momento de ejecución.
 
-Se evaluaron 27 capacidades funcionales atómicas:
+### Pendiente
 
-- Implementada: flujo HTTP y persistencia funcional.
-- Parcial: existe algún modelo, campo o parte del flujo, pero no la funcionalidad completa.
-- Ausente: no existe implementación backend identificable.
+Convertirlo en un sistema de auditoría transversal para todas las entidades y operaciones administrativas.
 
-Resultado:
+---
 
-- 6 capacidades implementadas.
-- 8 capacidades parciales.
-- 13 capacidades ausentes.
+# 23. Incidencias
 
-Contando una capacidad parcial como media capacidad:
+## Estado: ❌ Pendiente
 
-$$
-\\frac{6 + 8 \\times 0.5}{27} \\times 100 = 37\\%
-$$
+No existe actualmente un módulo HTTP completo para:
 
-La cobertura funcional del backend Go sigue siendo de aproximadamente **37%**, con un rango razonable de **35% a 40%**. Esta cifra mide flujos disponibles mediante servicios y API, no la existencia de tablas.
+```text
+Incidents
+```
 
-El ERD mejora la situación de preparación técnica: una parte importante de las capacidades antes consideradas ausentes ya tiene tablas, relaciones y estados definidos. Por eso conviene distinguir:
+El modelo funcional previsto contempla incidencias de los guías, pero la implementación backend todavía debe realizarse.
 
-- **Cobertura funcional backend:** aproximadamente 37%.
-- **Cobertura de persistencia/modelo:** sensiblemente mayor, porque el ERD ya prepara disponibilidad, itinerarios, incidencias, archivos, firmas, vouchers, notificaciones y auditoría.
+Pendiente:
 
-La diferencia restante está principalmente en implementar los servicios, repositorios, handlers, rutas, integraciones de email/PDF y reglas de negocio que conecten ese modelo con la aplicación.
+- Modelo.
+- Repository.
+- Service.
+- Handler.
+- Estados.
+- Asociación con tour day/reserva.
+- API.
+- Historial.
+- Notificaciones.
 
-### Roles del sistema
+---
 
-| Requisito | Estado | Observación |
-|---|---|---|
-| Roles `ADMIN` y `GUIDE` | Parcial | Los roles existen y se incluyen en el JWT, pero no se validan tokens ni permisos en las rutas. |
-| Operación administrativa protegida | Ausente | No existe autorización por rol. |
-| Operación propia del guía protegida | Ausente | No existen endpoints con control de identidad del guía autenticado. |
+# 24. Notificaciones
 
-### Modelo principal
+## Estado: ❌ Pendiente
 
-| Requisito | Estado | Observación |
-|---|---|---|
-| Reserva padre | Implementado | CRUD, detalle, cancelación y borrado físico. |
-| Días de tour hijos | Implementado | Una reserva puede contener varios días y se crean automáticamente según el rango de fechas. |
-| Clientes | Implementado | CRUD, asociación a reservas y reutilización por email. |
-| Agencias | Implementado | CRUD y filtros básicos. |
-| Guías | Implementado | Gestión de usuario-guía, idiomas y zonas. |
-| Disponibilidad de guías | Implementado parcialmente | Existen rutas HTTP para crear, consultar, actualizar y eliminar disponibilidades, con validación de fechas, rangos y solapamientos. La regla de negocio ya se aplica en la consulta de tours elegibles: un guía no disponible no aparece como candidato. Falta restringir el borrado al guía de la URL. |
-| Itinerarios | Parcial | Existen datos operativos del día, pero no una entidad de itinerario con actividades ordenadas. |
+No existe todavía un sistema completo de notificaciones.
 
-### Documentación y procesos legales
+Pendiente:
 
-| Requisito | Estado | Observación |
-|---|---|---|
-| Firma legal | Parcial | El modelo de datos ya contempla `legal_signatures`, estados, enlace externo y fechas; falta el flujo backend para enviar automáticamente el email y actualizar el estado cuando corresponda. |
-| Bono o voucher PDF | Parcial | El modelo de datos ya contempla `vouchers`, versión, URL y fecha de envío; falta generar el PDF desde una plantilla HTML, almacenarlo y enviarlo por email. |
-| Documentación asociada al tour | Parcial | Existe una base genérica de archivos (`files`), pero todavía no hay flujo backend de documentos asociados, generación o descarga. |
+- Notificaciones por zona.
+- Notificaciones a guías.
+- Eventos de asignación.
+- Avisos de expiración.
+- Notificaciones de incidencias.
+- Email.
+- Posibles canales adicionales.
 
-### Operación e incidencias
+---
 
-| Requisito | Estado | Observación |
-|---|---|---|
-| Crear, modificar y cancelar tours | Implementado | Se cubre mediante reservas y días de tour. |
-| Confirmar tours | Parcial | Existen estados de confirmación, pero no existe un endpoint específico ni una transición completa de confirmación. |
-| Tours disponibles para guías | Parcial | Existe una consulta de días elegibles por guía que excluye sus períodos de indisponibilidad y respeta `MaxToursPerDay`; todavía falta completar el flujo de aceptación por parte del guía. |
-| Aceptar un tour como guía | Ausente | La asignación actual la realiza un operador; no existe aceptación del guía. |
-| Cancelar o rechazar un tour como guía | Ausente | No existe operación con reglas de cancelación del guía. |
-| Calendario de guías | Parcial | Se guardan fechas de tours, pero no existe consulta de calendario por guía o rango. |
-| Historial de tours del guía | Parcial | Hay historial técnico de asignaciones y estados, pero no consulta funcional para el guía. |
-| Incidencias | Parcial | La base de datos ya contempla `incidents`, estados e historial; falta el módulo Go con endpoints, permisos, transiciones y listado de incidencias actuales. |
-| Fotografías de incidencias | Parcial | Existen `files` e `incident_files`; falta la carga y asociación desde la API. |
+# 25. Archivos y documentos
 
-### Plataforma móvil y comunicación
+## Estado: ❌ Pendiente
 
-| Requisito | Estado | Observación |
-|---|---|---|
-| Perfil del guía | Implementado | Existe información de usuario, idiomas, zonas y límite diario. |
-| Notificaciones push/email | Parcial | La base de datos ya contempla `notifications`, canal PUSH/EMAIL y lectura; falta el servicio de notificaciones, proveedor y endpoints o eventos que las generen. |
-| Estadísticas administrativas | Ausente | No hay endpoints ni consultas de métricas. |
-| Auditoría de negocio | Parcial | La base de datos ya contempla `audit_logs`; falta registrar las acciones desde los servicios y exponer consultas si son necesarias. |
+Actualmente no existe un sistema completo de gestión documental.
 
-## 16. Diferencias entre el modelo solicitado y el modelo actual
+Pendiente:
 
-### Entidades preparadas en la base de datos pero no implementadas en Go
+- Upload.
+- Storage.
+- Metadata.
+- Asociación con reservas.
+- Asociación con vouchers.
+- Documentos firmados.
+- Descarga.
+- Eliminación.
 
-El ERD confirma que varias capacidades no deben considerarse ausentes del diseño de persistencia. Existen tablas, relaciones o tipos para:
+---
 
-- `Itinerario`.
-- `Bono` como documento versionado (`vouchers`).
-- `FirmaLegal` como entidad de integración (`legal_signatures`).
-- `Incidencia`.
-- `Disponibilidad`.
-- `Notificacion`.
-- `LogAuditoria` de negocio.
-- Archivos e imágenes mediante `files` e `incident_files`.
+# 26. Email
 
-Estas piezas están preparadas en PostgreSQL, pero todavía no están conectadas a handlers, servicios, repositorios ni rutas HTTP del backend analizado.
+## Estado: ❌ Pendiente
 
-La disponibilidad es una excepción parcial: ya tiene DTO, repositorio, servicio, handlers y rutas públicas en `internal/api/guides_routes.go`. El bloque usa `*time.Time`, permite `reason` vacío o `null`, acepta el mismo día y rechaza rangos inválidos o solapados. El JSON debe respetar el formato que acepta `time.Time` (por ejemplo, RFC3339); una fecha simple `YYYY-MM-DD` no se deserializa automáticamente con este contrato.
+No existe todavía una capa completa para envío de emails.
 
-### Campos o conceptos parciales
+Especialmente pendiente:
 
-- La agencia sí tiene el campo `representative` en el ERD, aunque todavía no está integrado de forma homogénea en todos los DTOs y flujos del backend.
-- El ERD ya contempla clientes propios del día mediante `tour_day_customers` y actividades ordenadas mediante `itinerary_items`; todavía faltan sus módulos Go, servicios y rutas HTTP.
-- El guía tiene zonas, idiomas, `MaxToursPerDay` y disponibilidad por rangos de fechas. La disponibilidad filtra la consulta de tours elegibles para el guía y respeta su límite diario. No forma parte de la responsabilidad de `assign-guide`; queda pendiente verificar la pertenencia del registro al guía en el borrado.
-- El voucher ya tiene tabla propia con reserva/día, estado, versión, URL y fecha de envío; todavía falta la generación y distribución real.
-- La firma ya tiene tabla propia con reserva, enlace externo, estado y fechas; todavía falta automatizar el email y el procesamiento del resultado.
-- Los estados en inglés son coherentes con una API y un dominio escalables; no constituyen una diferencia funcional negativa respecto a los nombres en español de la guía.
-- La confirmación manual por parte del guía debe tratarse como una regla de negocio a concretar. El ERD contempla `GUIDE_CONFIRMED`, mientras que el flujo Go actual debe conectarse explícitamente a esa transición.
-- El voucher debe generarse a partir de la información almacenada, usando una plantilla HTML, convertirse a PDF y enviarse por email. El envío manual opcional puede servir como revisión operativa del formato antes de automatizarlo.
-- En incidencias, el listado operativo debe mostrar únicamente estados activos (`OPEN` e `IN_REVIEW`). Al pasar a `RESOLVED` o `CLOSED`, la incidencia debe desaparecer del listado actual, conservándose en base de datos para historial y auditoría.
+- Envío de vouchers.
+- Confirmaciones.
+- Avisos a guías.
+- Notificaciones.
+- Recuperación de contraseña.
 
-## 17. Qué falta para completar el alcance
+---
 
-### Prioridad alta
+# 27. RBAC / permisos
 
-1. Implementar middleware JWT y autorización por rol.
-2. Verificar la pertenencia del registro al guía al modificar o eliminar disponibilidades.
-3. Implementar flujo de tours disponibles, aceptación y rechazo por parte del guía.
-4. Crear el módulo de incidencias con estados, fotos, permisos, historial y filtro de incidencias activas (`OPEN`/`IN_REVIEW`). Las incidencias `RESOLVED`/`CLOSED` deben quedar fuera del listado operativo, sin borrarse físicamente.
-5. Implementar firma legal: generación/envío del email, enlace o formato externo y actualización del estado.
-6. Implementar vouchers: plantilla HTML, conversión a PDF, almacenamiento, revisión manual opcional y envío por email.
+## Estado: ❌ Pendiente
 
-### Prioridad media
+Aunque existen roles:
 
-1. Crear itinerarios y actividades ordenadas por día de tour.
-2. Añadir calendarios y consultas por guía, rango de fechas y zona.
-3. Añadir estadísticas administrativas.
-4. Crear notificaciones persistentes y notificaciones push.
-5. Implementar auditoría de negocio con usuario, entidad, acción, descripción y timestamp.
+```text
+ADMIN
+GUIDE
+```
 
-### Correcciones necesarias del núcleo existente
+actualmente no existe una capa global que fuerce permisos sobre los endpoints.
 
-1. Completar la validación de transiciones y permisos de confirmación.
-2. Completar la generación/envío de firma y voucher.
+El JWT se genera, pero las rutas no están protegidas globalmente mediante middleware JWT.
 
-## 18. Actualización incremental del análisis
+Pendiente:
 
-Desde la revisión técnica anterior se completó el bloque HTTP y de validación de disponibilidad de guías:
+```text
+Authentication
+        ↓
+JWT Middleware
+        ↓
+User
+        ↓
+Role
+        ↓
+Permission
+        ↓
+Endpoint
+```
 
-- DTO `Availability` y solicitud de creación.
-- Repositorio para crear, consultar, actualizar y eliminar registros.
-- Servicio, handlers y rutas HTTP para las operaciones de disponibilidad.
-- Validación de fechas mediante `*time.Time`.
-- Rechazo de guía inexistente, fechas inválidas, rangos invertidos y rangos solapados.
-- Aceptación de rangos de un solo día, rangos consecutivos y `reason` vacío o `null`.
-- Comprobación de `RowsAffected` al actualizar o eliminar.
+---
 
-La capacidad queda **parcial** porque todavía no se consulta al asignar un tour ni se comprueba el solapamiento con `tour_days` asignados. Además, quedan estos riesgos concretos:
+# 28. Búsqueda y filtros
 
-- `DELETE /guides/{id}/availabilities/{availability_id}` usa el `availability_id`, pero el servicio no verifica que ese registro pertenezca al guía `{id}`. Un cliente que conozca otro UUID podría eliminar una disponibilidad ajena.
-- El borrado de disponibilidad no reutiliza el mapeo de errores del resto del bloque; una disponibilidad inexistente puede terminar como `500` en lugar de `404`.
-- `HasConflictingAvailability` se consulta en el servicio, pero dos creaciones simultáneas pueden superar ambas la comprobación antes de insertar. Hace falta una estrategia transaccional o una restricción de exclusión en PostgreSQL.
-- Hay tests unitarios para el rango de fechas, pero todavía faltan tests de handler, repositorio, conflicto real y permisos de pertenencia al guía.
+## Estado: 🟡 Parcial
 
-La regla funcional es: dado un `tour_day.start_datetime`, excluir de la consulta de tours elegibles cualquier guía cuya disponibilidad cubra esa fecha. La consulta ya aplica ese filtro y también limita los resultados por `MaxToursPerDay`. `assign-guide` no necesita repetir esta validación porque opera sobre una asignación ya seleccionada.
+Ya existen filtros/búsquedas en determinadas áreas.
 
-## 19. Revisión técnica profunda
+Ejemplos:
 
-Esta revisión analiza problemas de seguridad, consistencia, diseño y robustez del backend Go. `go vet ./...` no detecta errores estáticos, pero eso no cubre los problemas funcionales ni de arquitectura descritos aquí.
+- Clientes por distintos campos.
+- Agencias por nombre/email/estado.
+- Disponibilidad de guías.
+- Días disponibles para un guía.
 
-### Críticos
+Sin embargo, todavía no existe un sistema homogéneo de filtros para toda la API.
 
-#### 1. La API no autentica ni autoriza las peticiones
+Pendiente especialmente:
 
-Se generan JWT durante el login, pero no existe middleware que valide `Authorization`, expiración, usuario o rol. Por tanto, las operaciones de creación, modificación, cancelación y borrado quedan expuestas a cualquier cliente que conozca las rutas.
+- Reservas por estado.
+- Reservas por fechas.
+- Reservas por agencia.
+- Reservas por guía.
+- Tour days por fecha.
+- Tour days por zona.
+- Búsqueda global.
 
-**Impacto:** acceso no autorizado y posibilidad de modificar datos operativos completos.
+---
 
-**Recomendación:** añadir middleware JWT global y middleware de permisos por rol. Las operaciones propias del guía deben obtener el usuario desde el token, no desde un ID enviado por el cliente.
+# 29. Paginación
 
-#### 2. Credenciales sensibles embebidas en el código
+## Estado: ❌ Pendiente
 
-La conexión PostgreSQL contiene usuario, contraseña, IP y `sslmode=disable` directamente en `internal/db/postgres.go`. El secreto de firma JWT también está hardcodeado en `internal/modules/auth/jwt.go`.
+No existe actualmente una estrategia general de paginación para los listados.
 
-**Impacto:** exposición de la base de datos y falsificación de tokens si el repositorio o una imagen Docker se filtra. La conexión además no cifra el tráfico.
+Debería incorporarse especialmente en:
 
-**Recomendación:** mover secretos a variables de entorno o un gestor de secretos, exigir TLS en producción, rotar las credenciales actuales y configurar tiempos de conexión.
+```text
+/users
+/guides
+/customers
+/reservations
+/activities
+```
 
-### Altos
+y posteriormente en cualquier colección que pueda crecer significativamente.
 
-#### 3. Creación de reservas sin transacción
+---
 
-`CreateReservation` crea primero la reserva, después sus días, clientes y relaciones en operaciones separadas. Si falla cualquiera de los pasos posteriores, queda una reserva incompleta en la base de datos.
+# 30. Testing
 
-**Impacto:** reservas sin días, clientes huérfanos o relaciones incompletas.
+## Estado: 🟡 Parcial
 
-**Recomendación:** ejecutar toda la creación dentro de una transacción PostgreSQL y hacer rollback ante cualquier error.
+La arquitectura actual facilita la introducción de tests debido a la separación:
 
-#### 4. Actualización de reservas parcialmente aplicada
+```text
+Handler
+   ↓
+Service
+   ↓
+Repository
+```
 
-`UpdateReservation` actualiza primero la reserva y después sincroniza clientes con varias operaciones independientes. Un error al añadir o quitar una relación deja la reserva actualizada pero con clientes antiguos o incompletos.
+pero el backend todavía necesita aumentar significativamente su cobertura de pruebas.
 
-**Impacto:** el detalle de la reserva deja de representar una operación atómica.
+Prioridad:
 
-**Recomendación:** agrupar actualización y sincronización de clientes en una única transacción.
+1. Reservations.
+2. Tour days.
+3. Guide assignment.
+4. Availability.
+5. Itinerary.
+6. Places.
+7. Activities.
+8. Authentication.
 
-#### 5. Cambiar las fechas de una reserva no sincroniza sus días
+---
 
-La actualización permite cambiar `start_date` y `end_date`, pero no crea, elimina ni reajusta los registros de `tour_days` asociados.
+# 31. Observabilidad
 
-**Impacto:** el rango de la reserva padre puede no coincidir con sus días hijos; el worker y la operación diaria trabajarán sobre información contradictoria.
+## Estado: 🟡 Parcial
 
-**Recomendación:** definir una política explícita para cambios de rango y aplicarla transaccionalmente, protegiendo días ya asignados o confirmados.
+Existe:
 
-#### 6. El worker puede sobrescribir estados terminales
+- Logging.
+- Health endpoint.
+- Logging de errores.
+- Sistema común de respuestas.
+- Errores de dominio/aplicación.
 
-`SyncReservationStatus` solo considera principalmente `PENDING_ASSIGNMENT`, `GUIDE_PREASSIGNED` y `PAYMENT_PENDING`. Una reserva `CONFIRMED`, `COMPLETED` o `CANCELLED` puede ser recalculada a `PENDING_ASSIGNMENT` si sus días no coinciden con los estados contemplados. Una reserva sin días también puede terminar en `PENDING_ASSIGNMENT`.
+Pero todavía no existe una infraestructura completa de observabilidad.
 
-**Impacto:** regresiones automáticas de estado y pérdida de una cancelación o confirmación.
+Pendiente:
 
-**Recomendación:** definir una máquina de estados explícita, excluir estados terminales del worker y tratar una reserva sin días como error o estado controlado.
+- Métricas.
+- Tracing.
+- Métricas de negocio.
+- Dashboards.
+- Alertas.
 
-#### 7. Borrado físico sin transacción y con dependencias incompletas
+---
 
-`EraseReservation` elimina días, relaciones y reserva mediante llamadas separadas. El ERD contiene dependencias adicionales como historiales, vouchers, firmas, incidencias y archivos, y esas relaciones no están configuradas de forma general con `ON DELETE CASCADE`.
+# 32. Integraciones externas
 
-**Impacto:** el borrado puede fallar a mitad de camino o quedar bloqueado por claves foráneas; también puede dejar registros relacionados sin limpiar.
+## Estado: ❌ Pendiente
 
-**Recomendación:** evitar el borrado físico en operaciones normales; si se mantiene, usar una transacción y definir explícitamente la política de cascada o archivado para cada entidad.
+El backend todavía no tiene implementadas completamente las integraciones externas previstas para:
 
-#### 8. Asignación múltiple de guías no atómica
+- Firma digital.
+- Email.
+- Almacenamiento documental.
+- Otros proveedores externos.
 
-`AssignGuideToMultipleTourDays` actualiza días uno por uno sin transacción. Además, `AssignGuide` no comprueba inmediatamente el error de esa operación antes de continuar con el registro del historial.
+La arquitectura actual permite incorporarlas posteriormente sin modificar el dominio principal.
 
-**Impacto:** parte de los días puede quedar asignada y parte no, o puede existir asignación sin historial correspondiente.
+---
 
-**Recomendación:** usar una transacción para cambios e historial, comprobar cada error inmediatamente y validar límites de disponibilidad del guía.
+# 33. Arquitectura actual
 
-#### 9. Cambio de contraseña ligado a un ID enviado por el cliente
+La estructura de la rama `itinerary` muestra una evolución hacia una arquitectura modular.
 
-`PATCH /auth/` recibe `user_id` en el cuerpo y no lo obtiene de una identidad autenticada. Actualmente no hay middleware que impida invocar el endpoint sin sesión.
+Actualmente encontramos:
 
-**Impacto:** el contrato permite intentar operaciones sobre cualquier usuario; la autorización depende únicamente de conocer la contraseña anterior.
+```text
+internal/
+├── api/
+│   ├── activity_routes.go
+│   ├── agency_routes.go
+│   ├── auth_routes.go
+│   ├── customer_routes.go
+│   ├── guides_routes.go
+│   ├── itinerary_routes.go
+│   ├── language_routes.go
+│   ├── places_route.go
+│   ├── reservations_routes.go
+│   ├── routes.go
+│   ├── tourday_routes.go
+│   ├── user_routes.go
+│   └── zone_routes.go
+│
+├── application/
+│   ├── guides/
+│   ├── reservation_customers/
+│   ├── reservations/
+│   └── tour_days/
+│       ├── itinerary/
+│       └── places/
+│
+├── modules/
+│   ├── auth/
+│   ├── customers/
+│   ├── guides/
+│   ├── itinerary/
+│   ├── tours/
+│   └── users/
+│
+├── db/
+└── shared/
+    ├── errors/
+    ├── logger/
+    ├── middleware/
+    └── response/
+```
 
-**Recomendación:** obtener el usuario del JWT. Para administración, crear un endpoint separado y protegido para restablecimiento de credenciales.
+Esto indica que el backend ya no es simplemente un CRUD monolítico, sino que tiene una separación clara entre:
 
-### Medios
+```text
+HTTP
+ ↓
+Application
+ ↓
+Domain / Modules
+ ↓
+Repository
+ ↓
+PostgreSQL
+```
 
-#### 10. El `PATCH` de reservas ignora el código de la URL
+---
 
-La ruta es `/reservations/{code}`, pero `UpdateReservation` utiliza `Code` del JSON. Esto permite que el recurso indicado en la URL no coincida con el que realmente se actualiza y hace que el endpoint dependa de un campo interno del body.
+# 34. Situación actual del proyecto
 
-**Recomendación:** obtener siempre el código con `mux.Vars(r)` y eliminarlo del DTO de entrada o rechazar conflictos entre ambos valores.
+El backend ya cubre una parte importante del núcleo operativo de InariOps.
 
-#### 11. Actualización de días sin validación de dominio
+Especialmente desarrolladas están estas áreas:
 
-El servicio permite cambiar directamente `status`, `voucher_status`, guía, fecha y otros campos sin validar transiciones, existencia de relaciones ni reglas de negocio. También existe un archivo de validación de días sin implementación.
+```text
+Users
+Guides
+Guide availability
+Customers
+Agencies
+Reservations
+Tour Days
+Guide assignment
+Activities
+Places
+Itinerary
+```
 
-**Impacto:** se pueden producir estados imposibles, asignar guías inexistentes o modificar días cancelados/confirmados.
+La incorporación de:
 
-**Recomendación:** centralizar transiciones válidas y validar fechas, duración, personas, remuneración, guía, zona, hoteles y pertenencia a la reserva.
-
-#### 12. Creación de usuarios crea una guía para cualquier rol
-
-`CreateUser` crea siempre un registro en `guides`, incluso cuando el rol es `ADMIN`.
-
-**Impacto:** datos incorrectos y ambigüedad sobre qué usuarios pueden recibir asignaciones.
-
-**Recomendación:** crear el registro en `guides` únicamente para `GUIDE` y hacerlo dentro de la misma transacción que usuario y credenciales.
-
-#### 13. El flujo de desasignación exige un guía que ya no existe
-
-El servicio de desasignación recibe `guide_id` y usa `GetGuideByID` para crear el historial, aunque el día puede tener el guía guardado y el cliente no debería tener que reenviarlo. Si llega vacío o no coincide, la desasignación puede fallar después de haber actualizado el día.
-
-**Recomendación:** leer el guía anterior antes de desasignar, registrar el historial con ese valor y hacer ambas operaciones atómicas.
-
-#### 14. Errores HTTP demasiado genéricos
-
-Muchos handlers convierten cualquier error en `500` o `401`, incluso cuando corresponde `400`, `404` o `409`. También se devuelven mensajes distintos según el handler para casos equivalentes.
-
-**Impacto:** clientes incapaces de reaccionar correctamente y dificultad para diagnosticar fallos.
-
-**Recomendación:** mapear errores de dominio a códigos HTTP uniformes y usar un formato de error JSON común.
-
-### Diseño y operación
-
-#### 15. El modelo de aplicación no aprovecha todavía el ERD
-
-El ERD ya contiene disponibilidad, itinerarios, incidencias, archivos, firmas, vouchers, notificaciones y auditoría. La disponibilidad ya está registrada parcialmente en el bootstrap, pero las demás áreas todavía no tienen módulos o servicios conectados. La base de datos sigue por delante de la aplicación.
-
-**Riesgo:** lógica futura duplicada o implementada directamente en handlers si no se mantiene la separación repository/service/application.
-
-#### 16. Workers sin límites operativos ni apagado HTTP real
-
-Los workers se lanzan en goroutines y reciben contexto, pero el servidor no usa `Shutdown` con señales del sistema, no cierra la conexión de base de datos y el worker de sincronización no pasa el contexto a sus consultas principales. Tampoco hay métricas, backoff ni alertas de fallos.
-
-**Impacto:** apagados incompletos, consultas bloqueadas y errores silenciosos en producción.
-
-**Recomendación:** implementar apagado coordinado, timeouts por consulta, métricas, logging estructurado y política de reintentos.
-
-#### 17. Ausencia de pruebas de integración para invariantes críticas
-
-Ya existe un test unitario para la validación del rango de disponibilidad. Aun así, faltan pruebas para autorización, rollback de creación/actualización, cambios de fechas, transiciones de estado, asignación múltiple, cancelación, solapamientos contra PostgreSQL y borrado con todas las claves foráneas del ERD.
-
-**Recomendación:** añadir pruebas de repositorio con PostgreSQL y pruebas HTTP de integración antes de ampliar los módulos funcionales.
-
-### Orden recomendado de corrección
-
-1. Autenticación/autorización y retirada de secretos del código.
-2. Transacciones para reservas, clientes, días, asignaciones y borrados.
-3. Corrección del `PATCH /reservations/{code}` y de las transiciones de estado.
-4. Validación completa de días, guías, fechas y relaciones.
-5. Apagado controlado, timeouts y observabilidad.
-6. Tests de integración sobre PostgreSQL.
-
+```text
+Activities
+Places
+Itinerary
+```
+
+es un cambio importante respecto a versiones anteriores del backend.
+
+El núcleo de planificación de un tour actualmente puede representarse como:
+
+```text
+Reservation
+     │
+     ├── Customers
+     │
+     └── Tour Days
+            │
+            ├── Guide
+            ├── Availability
+            ├── Places
+            │
+            └── Itinerary
+                   │
+                   └── Activities
+```
+
+---
+
+# 35. Próximas áreas de desarrollo
+
+A partir del estado real actual, las siguientes áreas pendientes tienen especial relevancia:
+
+## Fase 1 — Cerrar el núcleo operativo
+
+- Terminar máquina de estados.
+- Revisar todas las transiciones de Reservation/Tour Day.
+- Completar reglas de asignación.
+- Completar disponibilidad.
+- Añadir incidencias.
+
+## Fase 2 — Seguridad
+
+- JWT middleware.
+- Protección de endpoints.
+- RBAC.
+- Permisos por rol.
+- Gestión segura del secreto.
+- Recuperación de contraseña.
+
+## Fase 3 — Documentos
+
+- Generación de voucher.
+- PDF.
+- Storage.
+- Firma digital.
+- Email.
+
+## Fase 4 — Comunicación
+
+- Sistema de notificaciones.
+- Email.
+- Avisos de asignación.
+- Avisos de incidencias.
+- Expiraciones.
+
+## Fase 5 — Calidad de plataforma
+
+- Paginación.
+- Filtros.
+- Tests.
+- Métricas.
+- Observabilidad.
+- Auditoría completa.
+
+---
+
+# 36. Conclusión
+
+El backend actual ya dispone de un **núcleo funcional de gestión de tours**, incluyendo reservas, clientes, guías, disponibilidad, asignaciones y, en la rama `itinerary`, la gestión de actividades, lugares e itinerarios.
+
+Las principales carencias actuales no están ya en el CRUD básico del negocio, sino en las capas que convierten el backend en una plataforma operativa completa:
+
+```text
+                 INARIOPS BACKEND
+
+              ┌───────────────────┐
+              │   Authentication  │
+              │      / RBAC       │
+              └─────────┬─────────┘
+                        │
+              ┌─────────▼─────────┐
+              │   CORE OPERATIONS │
+              │                   │
+              │ Reservations      │
+              │ Tour Days         │
+              │ Guides            │
+              │ Customers         │
+              │ Agencies          │
+              └─────────┬─────────┘
+                        │
+              ┌─────────▼─────────┐
+              │   TOUR PLANNING   │
+              │                   │
+              │ Activities        │
+              │ Places            │
+              │ Itinerary         │
+              │ Availability      │
+              └─────────┬─────────┘
+                        │
+          ┌─────────────┼─────────────┐
+          │             │             │
+     Incidents      Documents    Notifications
+          │             │             │
+          └─────────────┼─────────────┘
+                        │
+              ┌─────────▼─────────┐
+              │   INTEGRATIONS    │
+              │                   │
+              │ Email             │
+              │ Digital signature │
+              │ Storage           │
+              └───────────────────┘
+```
+
+**Estado de referencia:** rama `itinerary`, commit `d5339586cfe5fc01e9b218670a079bba6d2c82be`.

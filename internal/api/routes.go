@@ -2,6 +2,8 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
+	"inariops/internal/modules/auth"
 	"inariops/internal/shared/logger"
 	"inariops/internal/shared/response"
 	"net/http"
@@ -11,18 +13,30 @@ import (
 
 func NewRouter(
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
+	jwtManager *auth.JWTManager,
 ) *mux.Router {
 
 	router := mux.NewRouter()
 
 	router.Use(mux.CORSMethodMiddleware(router))
-	router.PathPrefix("/api/v1").Methods(http.MethodOptions).HandlerFunc(apiPreflightHandler)
 
+	router.PathPrefix("/api/v1").
+		Methods(http.MethodOptions).
+		HandlerFunc(apiPreflightHandler)
+
+	// =====================
 	// Health
+	// =====================
+
 	router.HandleFunc("/health", healthCheck).
 		Methods(http.MethodGet)
 
 	api := router.PathPrefix("/api/v1").Subrouter()
+
+	// =====================
+	// Public routes
+	// =====================
 
 	registerAuthRoutes(api, handlers)
 	registerUserRoutes(api, handlers)
@@ -42,7 +56,6 @@ func NewRouter(
 
 	return router
 }
-
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]string{
 		"status": "healthy",
