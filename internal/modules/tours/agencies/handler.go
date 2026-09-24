@@ -2,9 +2,11 @@ package agencies
 
 import (
 	"encoding/json"
-	"inariops/internal/shared/logger"
 	"net/http"
 	"strconv"
+
+	appErrors "inariops/internal/shared/errors"
+	"inariops/internal/shared/logger"
 
 	"github.com/gorilla/mux"
 )
@@ -27,10 +29,22 @@ func (h *Handler) CreateAgency(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
 	createdAgency, err := h.service.CreateAgency(&agency)
 	if err != nil {
 		logger.Error("CreateAgency", "failed to create agency: %v", err)
-		http.Error(w, "failed to create agency", http.StatusInternalServerError)
+
+		switch err {
+		case appErrors.ErrExistingAgency:
+			http.Error(w, err.Error(), http.StatusConflict)
+
+		case appErrors.ErrInvalidAgency:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+		default:
+			http.Error(w, "failed to create agency", http.StatusInternalServerError)
+		}
+
 		return
 	}
 
@@ -43,12 +57,12 @@ func (h *Handler) GetAgencyByID(w http.ResponseWriter, r *http.Request) {
 
 	agency, err := h.service.GetAgencyByID(id)
 	if err != nil {
-		http.Error(w, "failed to fetch agency", http.StatusInternalServerError)
-		return
-	}
+		if err == appErrors.ErrAgencyNotFound {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 
-	if agency == nil {
-		http.Error(w, "agency not found", http.StatusNotFound)
+		http.Error(w, "failed to fetch agency", http.StatusInternalServerError)
 		return
 	}
 
@@ -69,6 +83,11 @@ func (h *Handler) UpdateAgency(w http.ResponseWriter, r *http.Request) {
 	agency.ID = mux.Vars(r)["id"]
 
 	if err := h.service.UpdateAgency(&agency); err != nil {
+		if err == appErrors.ErrAgencyNotFound {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
 		http.Error(w, "failed to update agency", http.StatusInternalServerError)
 		return
 	}
@@ -81,6 +100,11 @@ func (h *Handler) DeleteAgency(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	if err := h.service.DeleteAgency(id); err != nil {
+		if err == appErrors.ErrAgencyNotFound {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
 		http.Error(w, "failed to delete agency", http.StatusInternalServerError)
 		return
 	}
@@ -105,6 +129,7 @@ func (h *Handler) ListAgencies(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid is_active parameter", http.StatusBadRequest)
 			return
 		}
+
 		req.IsActive = &value
 	}
 

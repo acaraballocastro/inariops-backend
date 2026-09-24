@@ -1,9 +1,9 @@
 package agencies
 
 import (
-	"fmt"
-	"inariops/internal/shared/logger"
 	"time"
+
+	appErrors "inariops/internal/shared/errors"
 
 	"github.com/google/uuid"
 )
@@ -22,8 +22,8 @@ func (s *Service) CreateAgency(agency *Agency) (*Agency, error) {
 	agency.CreatedAt = time.Now()
 	agency.UpdatedAt = time.Now()
 
-	if _, isValid := s.AgencyValidations(agency); !isValid {
-		return nil, fmt.Errorf("invalid agency data")
+	if err := s.AgencyValidations(agency); err != nil {
+		return nil, err
 	}
 
 	createdAgency, err := s.repo.CreateAgency(agency)
@@ -36,30 +36,57 @@ func (s *Service) CreateAgency(agency *Agency) (*Agency, error) {
 }
 
 func (s *Service) GetAgencyByID(id string) (*Agency, error) {
-	return s.repo.GetAgencyByID(id)
+	agency, err := s.repo.GetAgencyByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if agency == nil {
+		return nil, appErrors.ErrAgencyNotFound
+	}
+
+	return agency, nil
 }
 
 func (s *Service) UpdateAgency(agency *Agency) error {
+	existingAgency, err := s.repo.GetAgencyByID(agency.ID)
+	if err != nil {
+		return err
+	}
+
+	if existingAgency == nil {
+		return appErrors.ErrAgencyNotFound
+	}
+
 	return s.repo.UpdateAgency(agency)
 }
 
 func (s *Service) DeleteAgency(id string) error {
+	agency, err := s.repo.GetAgencyByID(id)
+	if err != nil {
+		return err
+	}
+
+	if agency == nil {
+		return appErrors.ErrAgencyNotFound
+	}
+
 	return s.repo.DeleteAgency(id)
 }
 
 func (s *Service) ListAgencies(req ListAgenciesRequest) ([]Agency, error) {
 	return s.repo.ListAgencies(req)
 }
-func (s *Service) AgencyValidations(agency *Agency) (Agency, bool) {
+
+func (s *Service) AgencyValidations(agency *Agency) error {
 	existingAgency, err := s.repo.GetAgencyByEmail(agency.Email)
 	if err != nil {
-		logger.Error("AgencyValidations", "failed to fetch agency by email: %v", err)
-		return Agency{}, false
-	}
-	if existingAgency != nil {
-		logger.Error("AgencyValidations", "agency with email %s already exists", agency.Email)
-		return Agency{}, false
+		return err
 	}
 
-	return Agency{}, true
+	if existingAgency != nil {
+		return appErrors.ErrExistingAgency
+	}
+
+	return nil
 }

@@ -1,7 +1,7 @@
 package languages
 
 import (
-	"fmt"
+	"inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
 	"time"
 
@@ -22,10 +22,12 @@ func (s *Service) CreateLanguage(language *Language) (*Language, error) {
 	language.CreatedAt = time.Now()
 	language.UpdatedAt = time.Now()
 
-	if _, isValid := s.LanguageValidations(language); !isValid {
-		return nil, fmt.Errorf("invalid language data")
+	if err := s.LanguageValidations(language); err != nil {
+		return nil, err
 	}
+
 	logger.Info("Creating new Language with Code: %s", language.Code)
+
 	return s.repo.CreateLanguage(language)
 }
 
@@ -39,7 +41,7 @@ func (s *Service) UpdateLanguage(language *Language) error {
 		return err
 	}
 	if existingLanguage == nil {
-		return fmt.Errorf("language with code %s not found", language.Code)
+		return errors.ErrLanguageNotFound
 	}
 
 	existingLanguage.UpdatedAt = time.Now()
@@ -57,14 +59,15 @@ func (s *Service) ListLanguages() ([]*Language, error) {
 	return s.repo.ListLanguages()
 }
 
-func (s *Service) LanguageValidations(language *Language) (*Language, bool) {
+func (s *Service) LanguageValidations(language *Language) error {
 	existingLanguage, err := s.repo.GetLanguageByCode(language.Code)
 	if err != nil {
-		return nil, false
-	}
-	if existingLanguage != nil {
-		return nil, false
+		return err
 	}
 
-	return nil, true
+	if existingLanguage != nil {
+		return errors.ErrInvalidLanguage
+	}
+
+	return nil
 }
