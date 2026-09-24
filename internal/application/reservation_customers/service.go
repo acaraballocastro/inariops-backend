@@ -1,7 +1,9 @@
 package reservationcustomersapp
 
 import (
+	"database/sql"
 	"fmt"
+	"inariops/internal/db"
 	"inariops/internal/modules/customers"
 	"inariops/internal/modules/tours/reservations"
 	reservationscustomers "inariops/internal/modules/tours/reservations_customers"
@@ -9,65 +11,98 @@ import (
 )
 
 type Service struct {
+	db                       *sql.DB
 	reservationsRepo         *reservations.Repository
 	customersRepo            *customers.Repository
 	reservationCustomersRepo *reservationscustomers.Repository
 }
 
 func NewService(
+	database *sql.DB,
 	reservationsRepo *reservations.Repository,
 	customersRepo *customers.Repository,
 	reservationCustomersRepo *reservationscustomers.Repository,
 ) *Service {
 	return &Service{
+		db:                       database,
 		reservationsRepo:         reservationsRepo,
 		customersRepo:            customersRepo,
 		reservationCustomersRepo: reservationCustomersRepo,
 	}
 }
 
-func (s *Service) AddCustomerToReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
+func (s *Service) AddCustomerToReservation(
+	reservationCode string,
+	customerIDs []string,
+) error {
+	return db.WithTransaction(nil, func(tx *sql.Tx) error {
 
-	var customersList []string
-	for _, customerID := range customerIDs {
-		customer, err := s.customersRepo.GetCustomerByID(customerID)
+		reservationsRepo := s.reservationsRepo.WithTx(tx)
+		customersRepo := s.customersRepo.WithTx(tx)
+		reservationCustomersRepo := s.reservationCustomersRepo.WithTx(tx)
+
+		reservation, err := reservationsRepo.GetReservationByCode(reservationCode)
 		if err != nil {
 			return err
 		}
 
-		if s.reservationCustomersRepo.IsCustomerInReservation(reservation.ID, customer.ID) {
-			return fmt.Errorf("customer with ID %s is already in the reservation", customer.ID)
+		var customersList []string
+
+		for _, customerID := range customerIDs {
+			customer, err := customersRepo.GetCustomerByID(customerID)
+			if err != nil {
+				return err
+			}
+
+			if reservationCustomersRepo.IsCustomerInReservation(
+				reservation.ID,
+				customer.ID,
+			) {
+				return fmt.Errorf(
+					"customer with ID %s is already in the reservation",
+					customer.ID,
+				)
+			}
+
+			customersList = append(customersList, customer.ID)
 		}
 
-		customersList = append(customersList, customer.ID)
-	}
+		if err := reservationCustomersRepo.AddCustomerToReservation(
+			reservation.ID,
+			customersList,
+		); err != nil {
+			return err
+		}
 
-	err = s.reservationCustomersRepo.AddCustomerToReservation(reservation.ID, customersList)
-	if err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }
 
-func (s *Service) RemoveCustomersFromReservation(reservationCode string, customerIDs []string) error {
-	reservation, err := s.reservationsRepo.GetReservationByCode(reservationCode)
-	if err != nil {
-		return err
-	}
+func (s *Service) RemoveCustomersFromReservation(
+	reservationCode string,
+	customerIDs []string,
+) error {
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
 
-	for _, customerID := range customerIDs {
-		err := s.reservationCustomersRepo.RemoveCustomerFromReservation(reservation.ID, customerID)
+		reservationsRepo := s.reservationsRepo.WithTx(tx)
+		reservationCustomersRepo := s.reservationCustomersRepo.WithTx(tx)
+
+		reservation, err := reservationsRepo.GetReservationByCode(reservationCode)
 		if err != nil {
 			return err
 		}
-	}
 
-	return nil
+		for _, customerID := range customerIDs {
+			if err := reservationCustomersRepo.RemoveCustomerFromReservation(
+				reservation.ID,
+				customerID,
+			); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (s *Service) GetCustomersByReservationCode(reservationCode string) ([]customers.Customer, error) {
@@ -95,30 +130,52 @@ func (s *Service) GetCustomersByReservationCode(reservationCode string) ([]custo
 }
 
 func (s *Service) DeleteCustomer(customerID string) error {
-	// Check if the customer exists
-	customer, err := s.customersRepo.GetCustomerByID(customerID)
-	if err != nil {
-		logger.Error("Error retrieving customer with ID %s: %v", customerID, err)
-		return err
-	}
-	if customer.ID == "" {
-		logger.Error("Customer with ID %s not found", customerID)
-		return fmt.Errorf("customer with ID %s not found", customerID)
-	}
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
 
-	// Remove the customer from all reservations
-	err = s.reservationCustomersRepo.RemoveAllReservationsFromCustomer(customerID)
-	if err != nil {
-		logger.Error("Error removing customer with ID %s from reservations: %v", customerID, err)
-		return err
-	}
+		customersRepo := s.customersRepo.WithTx(tx)
+		reservationCustomersRepo := s.reservationCustomersRepo.WithTx(tx)
 
-	// Delete the customer from the customers table
-	err = s.customersRepo.DeleteCustomer(customerID)
-	if err != nil {
-		logger.Error("Error deleting customer with ID %s: %v", customerID, err)
-		return err
-	}
+		customer, err := customersRepo.GetCustomerByID(customerID)
+		if err != nil {
+			logger.Error(
+				"Error retrieving customer with ID %s: %v",
+				customerID,
+				err,
+			)
+			return err
+		}
 
-	return nil
+		if customer.ID == "" {
+			logger.Error(
+				"Customer with ID %s not found",
+				customerID,
+			)
+			return fmt.Errorf(
+				"customer with ID %s not found",
+				customerID,
+			)
+		}
+
+		if err := reservationCustomersRepo.RemoveAllReservationsFromCustomer(
+			customerID,
+		); err != nil {
+			logger.Error(
+				"Error removing customer with ID %s from reservations: %v",
+				customerID,
+				err,
+			)
+			return err
+		}
+
+		if err := customersRepo.DeleteCustomer(customerID); err != nil {
+			logger.Error(
+				"Error deleting customer with ID %s: %v",
+				customerID,
+				err,
+			)
+			return err
+		}
+
+		return nil
+	})
 }

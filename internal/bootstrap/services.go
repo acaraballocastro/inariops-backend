@@ -124,6 +124,7 @@ func newServices(
 		),
 
 		ReservationCustomerApplication: reservationcustomersapp.NewService(
+			database,
 			repositories.Reservation,
 			repositories.Customer,
 			repositories.ReservationCustomer,
