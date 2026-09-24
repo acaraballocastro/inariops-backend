@@ -62,6 +62,7 @@ func (h *Handler) UpdateLanguage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+	Language.Code = mux.Vars(r)["code"]
 
 	if err := h.service.UpdateLanguage(&Language); err != nil {
 		http.Error(w, "failed to update Language", http.StatusInternalServerError)

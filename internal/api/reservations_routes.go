@@ -29,6 +29,12 @@ func registerReservationRoutes(
 	reservations.HandleFunc("/{code}", handlers.ReservationApplication.UpdateReservation).
 		Methods(http.MethodPatch)
 
+	reservations.HandleFunc("/{code}/signature", handlers.ReservationApplication.UpdateSignatureStatus).
+		Methods(http.MethodPatch)
+
+	reservations.HandleFunc("/{code}/voucher", handlers.ReservationApplication.UpdateVoucherStatus).
+		Methods(http.MethodPatch)
+
 	reservations.HandleFunc("/{code}", handlers.ReservationApplication.DeleteReservation).
 		Methods(http.MethodDelete)
 

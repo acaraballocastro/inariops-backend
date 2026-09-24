@@ -59,6 +59,7 @@ func (h *Handler) UpdateZone(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+	zone.ID = mux.Vars(r)["id"]
 
 	err := h.service.UpdateZone(&zone)
 	if err != nil {

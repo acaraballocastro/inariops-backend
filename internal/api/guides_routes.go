@@ -36,4 +36,17 @@ func registerGuideRoutes(
 
 	guides.HandleFunc("/{id}/languages/{language_id}", handlers.GuideApplication.RemoveLanguageFromGuide).
 		Methods(http.MethodDelete)
+
+	// Availabilities routes
+	guides.HandleFunc("/{id}/availabilities", handlers.GuideApplication.GetAvailabilitiesByGuideID).
+		Methods(http.MethodGet)
+
+	guides.HandleFunc("/{id}/availabilities", handlers.GuideApplication.CreateAvailability).
+		Methods(http.MethodPost)
+
+	guides.HandleFunc("/{id}/availabilities/{availability_id}", handlers.GuideApplication.UpdateAvailability).
+		Methods(http.MethodPatch)
+
+	guides.HandleFunc("/{id}/availabilities/{availability_id}", handlers.GuideApplication.DeleteAvailability).
+		Methods(http.MethodDelete)
 }

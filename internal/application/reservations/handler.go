@@ -2,11 +2,16 @@ package reservationsapp
 
 import (
 	"encoding/json"
+	"inariops/internal/domain"
 	"inariops/internal/shared/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
+
+type StatusUpdateRequest struct {
+	Status string `json:"status"`
+}
 
 type Handler struct {
 	service *Service
@@ -92,5 +97,43 @@ func (h *Handler) EraseReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) UpdateSignatureStatus(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var request StatusUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	status := domain.SignatureStatus(request.Status)
+	if status != domain.SIGNATURE_NOT_SENT && status != domain.SIGNATURE_SENT && status != domain.SIGNATURE_SIGNED && status != domain.SIGNATURE_REJECTED {
+		http.Error(w, "invalid signature status", http.StatusBadRequest)
+		return
+	}
+	if err := h.service.UpdateSignatureStatus(mux.Vars(r)["code"], status); err != nil {
+		http.Error(w, "failed to update signature status", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) UpdateVoucherStatus(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var request StatusUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	status := domain.VoucherStatus(request.Status)
+	if status != domain.VOUCHER_NOT_GENERATED && status != domain.VOUCHER_GENERATED && status != domain.VOUCHER_PARTIALLY_SENT && status != domain.VOUCHER_SENT {
+		http.Error(w, "invalid voucher status", http.StatusBadRequest)
+		return
+	}
+	if err := h.service.UpdateVoucherStatus(mux.Vars(r)["code"], status); err != nil {
+		http.Error(w, "failed to update voucher status", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

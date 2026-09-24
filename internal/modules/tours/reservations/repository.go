@@ -216,6 +216,40 @@ func (r *Repository) UpdateReservationStatus(code string, status domain.Reservat
 	return nil
 }
 
+func (r *Repository) UpdateSignatureStatus(code string, status domain.SignatureStatus) error {
+	result, err := r.db.Exec(`
+		UPDATE reservations SET signature_status = $1, updated_at = NOW() WHERE code = $2
+	`, status, code)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.ErrReservationNotFound
+	}
+	return nil
+}
+
+func (r *Repository) UpdateVoucherStatus(code string, status domain.VoucherStatus) error {
+	result, err := r.db.Exec(`
+		UPDATE reservations SET voucher_status = $1, updated_at = NOW() WHERE code = $2
+	`, status, code)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.ErrReservationNotFound
+	}
+	return nil
+}
+
 func (r *Repository) EraseReservation(code string) error {
 	result, err := r.db.Exec(`
 		DELETE FROM reservations

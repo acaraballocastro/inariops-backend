@@ -1,7 +1,11 @@
 package guidesapp
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"inariops/internal/modules/guides/availabilities"
+	appErrors "inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
 	"net/http"
 
@@ -133,4 +137,87 @@ func (h *Handler) UpdateGuide(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedGuide)
+}
+
+// Availability Handlers
+func (h *Handler) GetAvailabilitiesByGuideID(w http.ResponseWriter, r *http.Request) {
+	guideID := mux.Vars(r)["id"]
+
+	availabilities, err := h.service.GetAvailabilitiesByGuideID(guideID)
+	if err != nil {
+		http.Error(w, "failed to fetch availabilities for guide", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(availabilities)
+}
+
+func (h *Handler) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var availability availabilities.CreateAvailabilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&availability); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	availability.GuideID = mux.Vars(r)["id"]
+
+	createdAvailability, err := h.service.CreateAvailability(availability)
+	if err != nil {
+		writeAvailabilityError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(createdAvailability)
+}
+
+func (h *Handler) DeleteAvailability(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["availability_id"]
+
+	err := h.service.DeleteAvailability(id)
+	if err != nil {
+		http.Error(w, "failed to delete availability", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) UpdateAvailability(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	vars := mux.Vars(r)
+	guideID := vars["id"]
+	availabilityID := vars["availability_id"]
+
+	var availabilityRequest availabilities.CreateAvailabilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&availabilityRequest); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	updatedAvailability, err := h.service.UpdateAvailability(guideID, availabilityID, availabilityRequest)
+	if err != nil {
+		writeAvailabilityError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedAvailability)
+}
+
+func writeAvailabilityError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, appErrors.ErrInvalidAvailabilityDate):
+		http.Error(w, "invalid availability dates", http.StatusBadRequest)
+	case errors.Is(err, appErrors.ErrAvailabilityConflict):
+		http.Error(w, "availability range overlaps an existing range", http.StatusConflict)
+	case errors.Is(err, sql.ErrNoRows), errors.Is(err, appErrors.ErrAvailabilityNotFound):
+		http.Error(w, "guide or availability not found", http.StatusNotFound)
+	default:
+		http.Error(w, "failed to process availability", http.StatusInternalServerError)
+	}
 }

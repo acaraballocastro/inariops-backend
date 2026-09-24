@@ -31,7 +31,4 @@ func registerUserRoutes(
 
 	users.HandleFunc("/{id}", handlers.User.DeactivateUser).
 		Methods(http.MethodDelete)
-
-	users.HandleFunc("/guides", handlers.User.GetAllGuides).
-		Methods(http.MethodGet)
 }

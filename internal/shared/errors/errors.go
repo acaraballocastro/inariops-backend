@@ -91,6 +91,21 @@ var (
 		Message: "guide is not assigned to this tour day",
 	}
 
+	ErrInvalidAvailabilityDate = AppError{
+		Code:    "INVALID_AVAILABILITY_DATE",
+		Message: "invalid availability date",
+	}
+
+	ErrAvailabilityConflict = AppError{
+		Code:    "AVAILABILITY_CONFLICT",
+		Message: "availability overlaps an existing range",
+	}
+
+	ErrAvailabilityNotFound = AppError{
+		Code:    "AVAILABILITY_NOT_FOUND",
+		Message: "availability not found",
+	}
+
 	ErrCustomerNotFound = AppError{
 		Code:    "CUSTOMER_NOT_FOUND",
 		Message: "customer not found",

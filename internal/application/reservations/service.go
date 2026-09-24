@@ -435,7 +435,11 @@ func (s *Service) SyncReservationStatus(reservationCode string) error {
 	}
 
 	newStatus := domain.RESERVATION_PENDING_ASSIGNMENT
+	allGuideConfirmed := len(tourDays) > 0
 	for _, tourDay := range tourDays {
+		if tourDay.Status != domain.RESERVATION_GUIDE_CONFIRMED {
+			allGuideConfirmed = false
+		}
 		if tourDay.Status == domain.RESERVATION_PAYMENT_PENDING {
 			newStatus = domain.RESERVATION_PAYMENT_PENDING
 			break
@@ -444,6 +448,9 @@ func (s *Service) SyncReservationStatus(reservationCode string) error {
 		} else if tourDay.Status == domain.RESERVATION_PENDING_ASSIGNMENT && newStatus != domain.RESERVATION_PAYMENT_PENDING && newStatus != domain.RESERVATION_GUIDE_PREASSIGNED {
 			newStatus = domain.RESERVATION_PENDING_ASSIGNMENT
 		}
+	}
+	if allGuideConfirmed {
+		newStatus = domain.RESERVATION_CONFIRMED
 	}
 
 	if reservation.Status != newStatus {
@@ -459,6 +466,14 @@ func (s *Service) SyncReservationStatus(reservationCode string) error {
 	logger.Info("SyncReservationStatus: reservation %s status updated to %s", reservationCode, newStatus)
 
 	return nil
+}
+
+func (s *Service) UpdateSignatureStatus(code string, status domain.SignatureStatus) error {
+	return s.reservationsRepo.UpdateSignatureStatus(code, status)
+}
+
+func (s *Service) UpdateVoucherStatus(code string, status domain.VoucherStatus) error {
+	return s.reservationsRepo.UpdateVoucherStatus(code, status)
 }
 
 func (s *Service) EraseReservation(reservationCode string) error {

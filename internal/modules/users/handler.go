@@ -97,6 +97,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	input.ID = mux.Vars(r)["id"]
 
 	updatedUser, err := h.service.UpdateUser(input)
 	if err != nil {
@@ -108,8 +109,11 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	id := r.URL.Query().Get("id")
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		response.Error(w, http.StatusBadRequest, "user id is required")
+		return
+	}
 
 	err := h.service.DeactivateUser(id)
 	if err != nil {

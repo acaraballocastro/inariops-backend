@@ -131,6 +131,68 @@ func (r *Repository) GetTourDaysByReservationID(reservationID string) ([]tours.T
 	return tourDays, nil
 }
 
+func (r *Repository) GetTourDaysAvailableForGuide(guideID string) ([]tours.TourDay, error) {
+	rows, err := r.db.Query(`
+		SELECT id, reservation_id, code, title, start_datetime, duration, zone_id, guide_id,
+			status, people_count, remuneration, meeting_point, guide_hotel_id, customer_hotel_id,
+			guide_liability_notes, customer_liability_notes, voucher_status, created_at, updated_at
+		FROM tour_days
+		WHERE status = $1
+			AND guide_id IS NULL
+		ORDER BY start_datetime ASC
+	`, domain.RESERVATION_PENDING_ASSIGNMENT)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tourDays []tours.TourDay
+	for rows.Next() {
+		var tourDay tours.TourDay
+		if err := rows.Scan(
+			&tourDay.ID,
+			&tourDay.ReservationID,
+			&tourDay.Code,
+			&tourDay.Title,
+			&tourDay.StartDateTime,
+			&tourDay.Duration,
+			&tourDay.ZoneID,
+			&tourDay.GuideID,
+			&tourDay.Status,
+			&tourDay.PeopleCount,
+			&tourDay.Remuneration,
+			&tourDay.MeetingPoint,
+			&tourDay.GuideHotelID,
+			&tourDay.CustomerHotelID,
+			&tourDay.GuideLiabilityNotes,
+			&tourDay.CustomerLiabilityNotes,
+			&tourDay.VoucherStatus,
+			&tourDay.CreatedAt,
+			&tourDay.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		tourDays = append(tourDays, tourDay)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return tourDays, nil
+}
+
+func (r *Repository) CountGuideTourDaysByDate(guideID string, date time.Time) (int, error) {
+	var count int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM tour_days
+		WHERE guide_id = $1
+			AND DATE(start_datetime) = $2
+			AND status NOT IN ($3, $4)
+	`, guideID, date.Format("2006-01-02"), domain.RESERVATION_CANCELLED, domain.RESERVATION_COMPLETED).Scan(&count)
+	return count, err
+}
+
 func (r *Repository) UpdateTourDay(tourDay tours.TourDay) error {
 	_, err := r.db.Exec(`
 		UPDATE tour_days SET
