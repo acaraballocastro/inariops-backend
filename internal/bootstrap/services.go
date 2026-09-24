@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"database/sql"
 	guidesapp "inariops/internal/application/guides"
 	reservationcustomersapp "inariops/internal/application/reservation_customers"
 	reservationsapp "inariops/internal/application/reservations"
@@ -55,6 +56,7 @@ type Services struct {
 }
 
 func newServices(
+	database *sql.DB,
 	repositories *Repositories,
 	jwtManager *auth.JWTManager,
 ) *Services {
@@ -112,6 +114,7 @@ func newServices(
 
 		// Application Services
 		ReservationApplication: reservationsapp.NewService(
+			database,
 			repositories.Reservation,
 			repositories.Customer,
 			repositories.ReservationCustomer,
@@ -126,6 +129,7 @@ func newServices(
 		),
 
 		TourDayApplication: tourdaysapp.NewService(
+			database,
 			repositories.TourDay,
 			repositories.Guide,
 			repositories.Availability,

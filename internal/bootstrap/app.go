@@ -20,6 +20,7 @@ func New(
 	repositories := newRepositories(db)
 
 	services := newServices(
+		db,
 		repositories,
 		jwtManager,
 	)
