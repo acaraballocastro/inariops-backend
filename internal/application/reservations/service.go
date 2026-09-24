@@ -178,92 +178,77 @@ func (s *Service) CreateReservation(reservationRequest CreateReservationRequest)
 		}
 
 		// Resolve customers
+		// Resolve customers
 		var customersList []customers.Customer
 		var customerIDs []string
 
 		for _, customerRequest := range reservationRequest.Customers {
 
-			if customerRequest.ID == nil ||
-				strings.TrimSpace(*customerRequest.ID) == "" {
+			var customer customers.Customer
 
-				customer, err := customersRepo.GetCustomerByEmail(
-					customerRequest.Email,
-				)
+			// Customer identified by ID
+			if customerRequest.ID != nil &&
+				strings.TrimSpace(*customerRequest.ID) != "" {
 
-				if err == nil {
-					customersList = append(customersList, customer)
-					customerIDs = append(customerIDs, customer.ID)
-					continue
-				}
+				customerID := strings.TrimSpace(*customerRequest.ID)
 
-				customer = customers.Customer{
-					ID:             uuid.New().String(),
-					FullName:       customerRequest.FullName,
-					DocumentNumber: customerRequest.DocumentNumber,
-					Phone:          customerRequest.Phone,
-					Email:          customerRequest.Email,
-					Age:            customerRequest.Age,
-					CreatedAt:      time.Now(),
-				}
+				customer, err = customersRepo.GetCustomerByID(customerID)
 
-				err = customersRepo.CreateCustomer(customer)
 				if err != nil {
 					logger.Error(
-						"CreateReservation: failed to create customer: %v",
+						"CreateReservation: failed to get customer %s: %v",
+						customerID,
 						err,
 					)
 					return err
 				}
 
-				customersList = append(customersList, customer)
-				customerIDs = append(customerIDs, customer.ID)
+			} else {
 
-				continue
-			}
-
-			customer, err := customersRepo.GetCustomerByEmail(
-				customerRequest.Email,
-			)
-
-			switch {
-			case err == nil:
-				customersList = append(customersList, customer)
-				customerIDs = append(customerIDs, customer.ID)
-				continue
-
-			case err == sql.ErrNoRows:
-				// Customer does not exist, create it
-
-			default:
-				logger.Error(
-					"CreateReservation: failed to find customer by email %s: %v",
+				// Try to find customer by email
+				customer, err = customersRepo.GetCustomerByEmail(
 					customerRequest.Email,
-					err,
 				)
-				return err
-			}
 
-			customer = customers.Customer{
-				ID:             uuid.New().String(),
-				FullName:       customerRequest.FullName,
-				DocumentNumber: customerRequest.DocumentNumber,
-				Phone:          customerRequest.Phone,
-				Email:          customerRequest.Email,
-				Age:            customerRequest.Age,
-				CreatedAt:      time.Now(),
-			}
+				switch {
+				case err == nil:
+					// Customer already exists
 
-			err = customersRepo.CreateCustomer(customer)
-			if err != nil {
-				logger.Error(
-					"CreateReservation: failed to create customer: %v",
-					err,
-				)
-				return err
+				case err == sql.ErrNoRows:
+					// Customer does not exist, create it
+
+					customer = customers.Customer{
+						ID:             uuid.New().String(),
+						FullName:       customerRequest.FullName,
+						DocumentNumber: customerRequest.DocumentNumber,
+						Phone:          customerRequest.Phone,
+						Email:          customerRequest.Email,
+						Age:            customerRequest.Age,
+						CreatedAt:      time.Now(),
+					}
+
+					err = customersRepo.CreateCustomer(customer)
+					if err != nil {
+						logger.Error(
+							"CreateReservation: failed to create customer: %v",
+							err,
+						)
+						return err
+					}
+
+				default:
+					logger.Error(
+						"CreateReservation: failed to find customer by email %s: %v",
+						customerRequest.Email,
+						err,
+					)
+					return err
+				}
 			}
 
 			customersList = append(customersList, customer)
 			customerIDs = append(customerIDs, customer.ID)
+
 		}
 
 		// Link customers to reservation
