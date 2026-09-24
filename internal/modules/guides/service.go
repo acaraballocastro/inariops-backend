@@ -1,6 +1,9 @@
 package guides
 
-import "inariops/internal/domain"
+import (
+	"database/sql"
+	"inariops/internal/domain"
+)
 
 type Service struct {
 	repo *Repository
@@ -8,6 +11,12 @@ type Service struct {
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
+}
+
+func (s *Service) WithTx(tx *sql.Tx) *Service {
+	return &Service{
+		repo: s.repo.WithTx(tx),
+	}
 }
 
 func (s *Service) CreateGuide(guide domain.Guide) error {

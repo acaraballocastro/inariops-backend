@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,27 +11,41 @@ import (
 func registerItineraryRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
+	itinerary := router.PathPrefix(
+		"/tour-days/{tour_day_id}/itinerary",
+	).Subrouter()
 
-	itinerary := router.PathPrefix("/tour-days/{tour_day_id}/itinerary").Subrouter()
-
-	itinerary.HandleFunc(
+	HandleAdminOrGuide(
+		itinerary,
 		"",
 		handlers.ItineraryApplication.GetItineraryByTourDayID,
-	).Methods(http.MethodGet)
+		http.MethodGet,
+		cfg,
+	)
 
-	itinerary.HandleFunc(
+	HandleAdmin(
+		itinerary,
 		"",
 		handlers.ItineraryApplication.CreateItineraryItem,
-	).Methods(http.MethodPost)
+		http.MethodPost,
+		cfg,
+	)
 
-	itinerary.HandleFunc(
+	HandleAdmin(
+		itinerary,
 		"/{item_id}",
 		handlers.ItineraryApplication.UpdateItineraryItem,
-	).Methods(http.MethodPatch)
+		http.MethodPatch,
+		cfg,
+	)
 
-	itinerary.HandleFunc(
+	HandleAdmin(
+		itinerary,
 		"/{item_id}",
 		handlers.ItineraryApplication.DeleteItineraryItem,
-	).Methods(http.MethodDelete)
+		http.MethodDelete,
+		cfg,
+	)
 }

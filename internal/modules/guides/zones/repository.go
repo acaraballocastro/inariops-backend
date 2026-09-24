@@ -2,14 +2,23 @@ package zones
 
 import (
 	"database/sql"
+	"inariops/internal/db"
 )
 
 type Repository struct {
-	db *sql.DB
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(database db.DBTX) *Repository {
+	return &Repository{
+		db: database,
+	}
+}
+
+func (r *Repository) WithTx(tx *sql.Tx) *Repository {
+	return &Repository{
+		db: tx,
+	}
 }
 
 func (r *Repository) CreateZone(zone *Zone) (*Zone, error) {

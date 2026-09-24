@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,25 +11,77 @@ import (
 func registerUserRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	users := router.PathPrefix("/users").Subrouter()
 
-	users.HandleFunc("", handlers.User.GetAllUsers).
-		Methods(http.MethodGet)
+	// =========================================================
+	// ADMIN ONLY
+	// =========================================================
 
-	users.HandleFunc("", handlers.User.CreateUser).
-		Methods(http.MethodPost)
+	// Get all users.
+	HandleAdmin(
+		users,
+		"",
+		handlers.User.GetAllUsers,
+		http.MethodGet,
+		cfg,
+	)
 
-	users.HandleFunc("/guides", handlers.User.GetAllGuides).
-		Methods(http.MethodGet)
+	// Create user.
+	HandleAdmin(
+		users,
+		"",
+		handlers.User.CreateUser,
+		http.MethodPost,
+		cfg,
+	)
 
-	users.HandleFunc("/{id}", handlers.User.GetUserByID).
-		Methods(http.MethodGet)
+	// Get all guides with their user information.
+	HandleAdmin(
+		users,
+		"/guides",
+		handlers.User.GetAllGuides,
+		http.MethodGet,
+		cfg,
+	)
 
-	users.HandleFunc("/{id}", handlers.User.UpdateUser).
-		Methods(http.MethodPatch)
+	// Deactivate user.
+	HandleAdmin(
+		users,
+		"/{id}",
+		handlers.User.DeactivateUser,
+		http.MethodDelete,
+		cfg,
+	)
 
-	users.HandleFunc("/{id}", handlers.User.DeactivateUser).
-		Methods(http.MethodDelete)
+	// =========================================================
+	// ADMIN + GUIDE (OWN USER)
+	// =========================================================
+
+	// ADMIN:
+	//   can access any user.
+	//
+	// GUIDE:
+	//   can only access the user represented by the JWT user_id.
+	HandleAdminOrOwnUser(
+		users,
+		"/{id}",
+		handlers.User.GetUserByID,
+		http.MethodGet,
+		cfg,
+	)
+
+	// ADMIN:
+	//   can update any user.
+	//
+	// GUIDE:
+	//   can only update their own user.
+	HandleAdminOrOwnUser(
+		users,
+		"/{id}",
+		handlers.User.UpdateUser,
+		http.MethodPatch,
+		cfg,
+	)
 }

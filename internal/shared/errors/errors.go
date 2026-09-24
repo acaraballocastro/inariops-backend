@@ -49,6 +49,11 @@ var (
 		Message: "reservation not found",
 	}
 
+	ErrFailedToCreateReservation = AppError{
+		Code:    "FAILED_TO_CREATE_RESERVATION",
+		Message: "failed to create reservation",
+	}
+
 	ErrInvalidReservationCode = AppError{
 		Code:    "INVALID_RESERVATION_CODE",
 		Message: "invalid reservation code",

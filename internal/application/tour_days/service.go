@@ -2,6 +2,8 @@ package tourdaysapp
 
 import (
 	"context"
+	"database/sql"
+	"inariops/internal/db"
 	"inariops/internal/domain"
 	"inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/availabilities"
@@ -14,14 +16,22 @@ import (
 )
 
 type Service struct {
+	db               *sql.DB
 	repo             *Repository
 	tourDayRepo      *tourdays.Repository
 	guideRepo        *guides.Repository
 	availabilityRepo *availabilities.Repository
 }
 
-func NewService(tourDayRepo *tourdays.Repository, guideRepo *guides.Repository, availabilityRepo *availabilities.Repository, assigmentRepo *Repository) *Service {
+func NewService(
+	database *sql.DB,
+	tourDayRepo *tourdays.Repository,
+	guideRepo *guides.Repository,
+	availabilityRepo *availabilities.Repository,
+	assigmentRepo *Repository,
+) *Service {
 	return &Service{
+		db:               database,
 		tourDayRepo:      tourDayRepo,
 		guideRepo:        guideRepo,
 		availabilityRepo: availabilityRepo,
@@ -30,107 +40,117 @@ func NewService(tourDayRepo *tourdays.Repository, guideRepo *guides.Repository, 
 }
 
 func (s *Service) AssignGuide(tourDayIDs []string, guideID string) error {
-	tourdays := make([]tours.TourDay, 0, len(tourDayIDs))
-	for _, tourDayID := range tourDayIDs {
-		tourDay, err := s.tourDayRepo.GetTourDayByID(tourDayID)
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
+
+		tourDayRepo := s.tourDayRepo.WithTx(tx)
+		guideRepo := s.guideRepo.WithTx(tx)
+		assignmentRepo := s.repo.WithTx(tx)
+
+		tourdays := make([]tours.TourDay, 0, len(tourDayIDs))
+
+		for _, tourDayID := range tourDayIDs {
+			tourDay, err := tourDayRepo.GetTourDayByID(tourDayID)
+			if err != nil {
+				return err
+			}
+
+			tourdays = append(tourdays, tourDay)
+		}
+
+		guide, err := guideRepo.GetGuideByID(guideID)
 		if err != nil {
 			return err
 		}
-		tourdays = append(tourdays, tourDay)
-	}
 
-	guide, err := s.guideRepo.GetGuideByID(guideID)
-	if err != nil {
-		return err
-	}
+		if len(tourdays) == 1 {
+			if err := tourDayRepo.AssignGuide(
+				tourdays[0].ID,
+				guide.ID,
+			); err != nil {
+				return err
+			}
 
-	if len(tourdays) == 1 {
-		err = s.tourDayRepo.AssignGuide(tourdays[0].ID, guide.ID)
-		if err != nil {
+			return s.setAssignmentStatusHistoryRegistry(
+				tourdays[0].ID,
+				guide.ID,
+				"ASSIGNED",
+				"GUIDE",
+				tourDayRepo,
+				guideRepo,
+				assignmentRepo,
+			)
+		}
+
+		if err := tourDayRepo.AssignGuideToMultipleTourDays(
+			tourDayIDs,
+			guide.ID,
+		); err != nil {
 			return err
 		}
-		err = s.SetAssignmentStatusHistoryRegistry(tourdays[0].ID, guide.ID, "ASSIGNED", "GUIDE")
+
+		for _, tourday := range tourdays {
+			if err := s.setAssignmentStatusHistoryRegistry(
+				tourday.ID,
+				guide.ID,
+				"ASSIGNED",
+				"GUIDE",
+				tourDayRepo,
+				guideRepo,
+				assignmentRepo,
+			); err != nil {
+				return err
+			}
+		}
+
 		return nil
-	}
-
-	err = s.tourDayRepo.AssignGuideToMultipleTourDays(tourDayIDs, guide.ID)
-	for _, tourday := range tourdays {
-		err = s.SetAssignmentStatusHistoryRegistry(tourday.ID, guide.ID, "ASSIGNED", "GUIDE")
-		if err != nil {
-			return err
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	})
 }
 
 func (s *Service) UnassignGuide(tourDayIDs []string, guideID string) error {
-	tourdays := make([]tours.TourDay, 0, len(tourDayIDs))
-	for _, tourDayID := range tourDayIDs {
-		tourDay, err := s.tourDayRepo.GetTourDayByID(tourDayID)
-		if err != nil {
-			return err
-		}
-		tourdays = append(tourdays, tourDay)
-	}
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
 
-	if len(tourdays) == 1 {
-		err := s.tourDayRepo.UnassignGuide(tourdays[0].ID)
+		tourDayRepo := s.tourDayRepo.WithTx(tx)
+		guideRepo := s.guideRepo.WithTx(tx)
+		assignmentRepo := s.repo.WithTx(tx)
+
+		tourdays := make([]tours.TourDay, 0, len(tourDayIDs))
+
+		for _, tourDayID := range tourDayIDs {
+			tourDay, err := tourDayRepo.GetTourDayByID(tourDayID)
+			if err != nil {
+				return err
+			}
+
+			tourdays = append(tourdays, tourDay)
+		}
+
+		// Validate guide before modifying anything.
+		guide, err := guideRepo.GetGuideByID(guideID)
 		if err != nil {
 			return err
 		}
-		err = s.SetAssignmentStatusHistoryRegistry(tourdays[0].ID, guideID, "UNASSIGNED", "GUIDE")
-		if err != nil {
-			return err
+
+		for _, tourday := range tourdays {
+
+			if err := tourDayRepo.UnassignGuide(tourday.ID); err != nil {
+				return err
+			}
+
+			if err := s.setAssignmentStatusHistoryRegistry(
+				tourday.ID,
+				guide.ID,
+				"UNASSIGNED",
+				"GUIDE",
+				tourDayRepo,
+				guideRepo,
+				assignmentRepo,
+			); err != nil {
+				return err
+			}
 		}
 
 		return nil
-	}
-
-	for _, tourday := range tourdays {
-		err := s.tourDayRepo.UnassignGuide(tourday.ID)
-		if err != nil {
-			return err
-		}
-		err = s.SetAssignmentStatusHistoryRegistry(tourday.ID, guideID, "UNASSIGNED", "GUIDE")
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *Service) SetAssignmentStatusHistoryRegistry(tourDayID string, guideID string, action string, changedBy string) error {
-	tourDay, err := s.tourDayRepo.GetTourDayByID(tourDayID)
-	if err != nil {
-		return err
-	}
-
-	guide, err := s.guideRepo.GetGuideByID(guideID)
-	if err != nil {
-		return err
-	}
-
-	assigment := TourDayAssigmentHistory{
-		ID:        uuid.New().String(),
-		TourDayID: tourDay.ID,
-		GuideID:   guide.ID,
-		Action:    action,
-		ChangedBy: changedBy,
-		CreatedAt: tourDay.UpdatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	err = s.repo.AddAssignmentStatus(assigment)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	})
 }
 
 func (s *Service) SetTourDayHistory(tourDayID string, newStatus string, changedBy string, reason string) error {
@@ -160,29 +180,53 @@ func (s *Service) SetTourDayHistory(tourDayID string, newStatus string, changedB
 func (s *Service) ProcessExpiredGuideAssignments(ctx context.Context) (domain.Result, error) {
 	var result domain.Result
 
-	tours, err := s.tourDayRepo.GetExpiredGuideAssignments(ctx)
+	expiredTours, err := s.tourDayRepo.GetExpiredGuideAssignments(ctx)
 	if err != nil {
 		return result, err
 	}
 
-	for _, tour := range tours {
+	for _, tour := range expiredTours {
 		result.Found++
 
-		err := s.tourDayRepo.UpdateTourDayStatus(tour.ID, domain.RESERVATION_PAYMENT_PENDING)
+		err := db.WithTransaction(s.db, func(tx *sql.Tx) error {
+
+			tourDayRepo := s.tourDayRepo.WithTx(tx)
+			historyRepo := s.repo.WithTx(tx)
+
+			if err := tourDayRepo.UpdateTourDayStatus(
+				tour.ID,
+				domain.RESERVATION_PAYMENT_PENDING,
+			); err != nil {
+				return err
+			}
+
+			history := TourDayStatusHistory{
+				ID:             uuid.New().String(),
+				TourDayID:      tour.ID,
+				PreviousStatus: string(tour.Status),
+				NewStatus:      string(domain.RESERVATION_PAYMENT_PENDING),
+				ChangedBy:      "SYSTEM",
+				Reason:         "Guide assignment expired",
+				CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+			}
+
+			if err := historyRepo.AddTourStatus(history); err != nil {
+				return err
+			}
+
+			return nil
+		})
+
 		if err != nil {
 			result.Failed++
 			continue
 		}
 
-		err = s.SetTourDayHistory(tour.ID, string(domain.RESERVATION_PAYMENT_PENDING), "SYSTEM", "Guide assignment expired")
-
 		result.Processed++
-
 	}
 
 	return result, nil
 }
-
 func (s *Service) TourDaysAvailableForGuide(guideID string) ([]tours.TourDay, error) {
 	guide, err := s.guideRepo.GetGuideByID(guideID)
 	if err != nil {
@@ -224,24 +268,42 @@ func (s *Service) TourDaysAvailableForGuide(guideID string) ([]tours.TourDay, er
 }
 
 func (s *Service) ConfirmTourDay(tourDayID string) error {
-	tourDay, err := s.tourDayRepo.GetTourDayByID(tourDayID)
-	if err != nil {
-		return err
-	}
-	if tourDay.Status != domain.RESERVATION_GUIDE_PREASSIGNED {
-		return errors.ErrInvalidInput
-	}
-	if err := s.tourDayRepo.UpdateTourDayStatus(tourDayID, domain.RESERVATION_GUIDE_CONFIRMED); err != nil {
-		return err
-	}
-	return s.repo.AddTourStatus(TourDayStatusHistory{
-		ID:             uuid.New().String(),
-		TourDayID:      tourDay.ID,
-		PreviousStatus: string(tourDay.Status),
-		NewStatus:      string(domain.RESERVATION_GUIDE_CONFIRMED),
-		ChangedBy:      "GUIDE",
-		Reason:         "Guide confirmed tour",
-		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+	return db.WithTransaction(s.db, func(tx *sql.Tx) error {
+
+		tourDayRepo := s.tourDayRepo.WithTx(tx)
+		historyRepo := s.repo.WithTx(tx)
+
+		tourDay, err := tourDayRepo.GetTourDayByID(tourDayID)
+		if err != nil {
+			return err
+		}
+
+		if tourDay.Status != domain.RESERVATION_GUIDE_PREASSIGNED {
+			return errors.ErrInvalidInput
+		}
+
+		if err := tourDayRepo.UpdateTourDayStatus(
+			tourDayID,
+			domain.RESERVATION_GUIDE_CONFIRMED,
+		); err != nil {
+			return err
+		}
+
+		history := TourDayStatusHistory{
+			ID:             uuid.New().String(),
+			TourDayID:      tourDay.ID,
+			PreviousStatus: string(tourDay.Status),
+			NewStatus:      string(domain.RESERVATION_GUIDE_CONFIRMED),
+			ChangedBy:      "GUIDE",
+			Reason:         "Guide confirmed tour",
+			CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+		}
+
+		if err := historyRepo.AddTourStatus(history); err != nil {
+			return err
+		}
+
+		return nil
 	})
 }
 
@@ -258,4 +320,52 @@ func availabilityCoversDate(ranges []*availabilities.Availability, date time.Tim
 		}
 	}
 	return false
+}
+
+func (s *Service) setAssignmentStatusHistoryRegistry(
+	tourDayID string,
+	guideID string,
+	action string,
+	changedBy string,
+	tourDayRepo *tourdays.Repository,
+	guideRepo *guides.Repository,
+	assignmentRepo *Repository) error {
+
+	tourDay, err := tourDayRepo.GetTourDayByID(tourDayID)
+	if err != nil {
+		return err
+	}
+
+	guide, err := guideRepo.GetGuideByID(guideID)
+	if err != nil {
+		return err
+	}
+
+	assignment := TourDayAssigmentHistory{
+		ID:        uuid.New().String(),
+		TourDayID: tourDay.ID,
+		GuideID:   guide.ID,
+		Action:    action,
+		ChangedBy: changedBy,
+		CreatedAt: tourDay.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	return assignmentRepo.AddAssignmentStatus(assignment)
+}
+
+func (s *Service) SetAssignmentStatusHistoryRegistry(
+	tourDayID string,
+	guideID string,
+	action string,
+	changedBy string,
+) error {
+	return s.setAssignmentStatusHistoryRegistry(
+		tourDayID,
+		guideID,
+		action,
+		changedBy,
+		s.tourDayRepo,
+		s.guideRepo,
+		s.repo,
+	)
 }

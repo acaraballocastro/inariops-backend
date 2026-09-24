@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"database/sql"
 	"inariops/internal/domain"
 	"inariops/internal/shared/errors"
 	"inariops/internal/shared/logger"
@@ -16,6 +17,13 @@ type Service struct {
 
 func NewService(repo *Repository, jwtManager *JWTManager) *Service {
 	return &Service{repo: repo, jwtManager: jwtManager}
+}
+
+func (s *Service) WithTx(tx *sql.Tx) *Service {
+	return &Service{
+		repo:       s.repo.WithTx(tx),
+		jwtManager: s.jwtManager,
+	}
 }
 
 func (s *Service) Login(email, password string) (LoginResponse, error) {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,37 +11,95 @@ import (
 func registerReservationRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	reservations := router.PathPrefix("/reservations").Subrouter()
 
-	reservations.HandleFunc("", handlers.Reservation.GetAllReservations).
-		Methods(http.MethodGet)
+	// =====================
+	// ADMIN + GUIDE
+	// =====================
 
-	reservations.HandleFunc("", handlers.ReservationApplication.CreateReservation).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		reservations,
+		"",
+		handlers.Reservation.GetAllReservations,
+		http.MethodGet,
+		cfg,
+	)
 
-	reservations.HandleFunc("/{code}", handlers.Reservation.GetReservationByCode).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		reservations,
+		"/{code}",
+		handlers.Reservation.GetReservationByCode,
+		http.MethodGet,
+		cfg,
+	)
 
-	reservations.HandleFunc("/details/{code}", handlers.ReservationApplication.GetReservationDetailByCode).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		reservations,
+		"/details/{code}",
+		handlers.ReservationApplication.GetReservationDetailByCode,
+		http.MethodGet,
+		cfg,
+	)
 
-	reservations.HandleFunc("/{code}", handlers.ReservationApplication.UpdateReservation).
-		Methods(http.MethodPatch)
+	HandleAdminOrGuide(
+		reservations,
+		"/{code}/customers",
+		handlers.ReservationCustomerApplication.GetCustomersByReservationCode,
+		http.MethodGet,
+		cfg,
+	)
 
-	reservations.HandleFunc("/{code}/signature", handlers.ReservationApplication.UpdateSignatureStatus).
-		Methods(http.MethodPatch)
+	// =====================
+	// ADMIN ONLY
+	// =====================
 
-	reservations.HandleFunc("/{code}/voucher", handlers.ReservationApplication.UpdateVoucherStatus).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		reservations,
+		"",
+		handlers.ReservationApplication.CreateReservation,
+		http.MethodPost,
+		cfg,
+	)
 
-	reservations.HandleFunc("/{code}", handlers.ReservationApplication.DeleteReservation).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		reservations,
+		"/{code}",
+		handlers.ReservationApplication.UpdateReservation,
+		http.MethodPatch,
+		cfg,
+	)
 
-	reservations.HandleFunc("/erase/{code}", handlers.ReservationApplication.EraseReservation).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		reservations,
+		"/{code}/signature",
+		handlers.ReservationApplication.UpdateSignatureStatus,
+		http.MethodPatch,
+		cfg,
+	)
 
-	reservations.HandleFunc("/{code}/customers", handlers.ReservationCustomerApplication.GetCustomersByReservationCode).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		reservations,
+		"/{code}/voucher",
+		handlers.ReservationApplication.UpdateVoucherStatus,
+		http.MethodPatch,
+		cfg,
+	)
+
+	HandleAdmin(
+		reservations,
+		"/{code}",
+		handlers.ReservationApplication.DeleteReservation,
+		http.MethodDelete,
+		cfg,
+	)
+
+	HandleAdmin(
+		reservations,
+		"/erase/{code}",
+		handlers.ReservationApplication.EraseReservation,
+		http.MethodDelete,
+		cfg,
+	)
 }

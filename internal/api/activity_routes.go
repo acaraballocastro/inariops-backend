@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,21 +11,47 @@ import (
 func registerActivityRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
 	activities := router.PathPrefix("/activities").Subrouter()
 
-	activities.HandleFunc("", handlers.Activity.GetAllActivities).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		activities,
+		"",
+		handlers.Activity.GetAllActivities,
+		http.MethodGet,
+		cfg,
+	)
 
-	activities.HandleFunc("/{id}", handlers.Activity.GetActivityByID).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		activities,
+		"/{id}",
+		handlers.Activity.GetActivityByID,
+		http.MethodGet,
+		cfg,
+	)
 
-	activities.HandleFunc("", handlers.Activity.CreateActivity).
-		Methods(http.MethodPost)
+	HandleAdmin(
+		activities,
+		"",
+		handlers.Activity.CreateActivity,
+		http.MethodPost,
+		cfg,
+	)
 
-	activities.HandleFunc("/{id}", handlers.Activity.UpdateActivity).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		activities,
+		"/{id}",
+		handlers.Activity.UpdateActivity,
+		http.MethodPatch,
+		cfg,
+	)
 
-	activities.HandleFunc("/{id}", handlers.Activity.DeleteActivity).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		activities,
+		"/{id}",
+		handlers.Activity.DeleteActivity,
+		http.MethodDelete,
+		cfg,
+	)
 }

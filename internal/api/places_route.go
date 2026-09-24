@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,26 +11,41 @@ import (
 func registerPlacesRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-	places := router.PathPrefix("/tour-days/{tour_day_id}/places").Subrouter()
+	places := router.PathPrefix(
+		"/tour-days/{tour_day_id}/places",
+	).Subrouter()
 
-	places.HandleFunc(
+	HandleAdminOrGuide(
+		places,
 		"",
 		handlers.PlaceApplication.GetPlacesByTourDayID,
-	).Methods(http.MethodGet)
+		http.MethodGet,
+		cfg,
+	)
 
-	places.HandleFunc(
+	HandleAdmin(
+		places,
 		"",
 		handlers.PlaceApplication.CreatePlace,
-	).Methods(http.MethodPost)
+		http.MethodPost,
+		cfg,
+	)
 
-	places.HandleFunc(
+	HandleAdmin(
+		places,
 		"/{place_id}",
 		handlers.PlaceApplication.UpdatePlace,
-	).Methods(http.MethodPatch)
+		http.MethodPatch,
+		cfg,
+	)
 
-	places.HandleFunc(
+	HandleAdmin(
+		places,
 		"/{place_id}",
 		handlers.PlaceApplication.DeletePlace,
-	).Methods(http.MethodDelete)
+		http.MethodDelete,
+		cfg,
+	)
 }

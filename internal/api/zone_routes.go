@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,22 +11,47 @@ import (
 func registerZoneRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	zones := router.PathPrefix("/zones").Subrouter()
 
-	zones.HandleFunc("", handlers.Zone.ListZones).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		zones,
+		"",
+		handlers.Zone.ListZones,
+		http.MethodGet,
+		cfg,
+	)
 
-	zones.HandleFunc("", handlers.Zone.CreateZone).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		zones,
+		"/{name}",
+		handlers.Zone.GetZoneByName,
+		http.MethodGet,
+		cfg,
+	)
 
-	zones.HandleFunc("/{name}", handlers.Zone.GetZoneByName).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		zones,
+		"",
+		handlers.Zone.CreateZone,
+		http.MethodPost,
+		cfg,
+	)
 
-	zones.HandleFunc("/{id}", handlers.Zone.UpdateZone).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		zones,
+		"/{id}",
+		handlers.Zone.UpdateZone,
+		http.MethodPatch,
+		cfg,
+	)
 
-	zones.HandleFunc("/{name}", handlers.Zone.DeleteZone).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		zones,
+		"/{name}",
+		handlers.Zone.DeleteZone,
+		http.MethodDelete,
+		cfg,
+	)
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"inariops/internal/bootstrap"
+	"inariops/internal/config"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,22 +11,47 @@ import (
 func registerAgencyRoutes(
 	router *mux.Router,
 	handlers *bootstrap.Handlers,
+	cfg config.Config,
 ) {
-
 	agencies := router.PathPrefix("/agencies").Subrouter()
 
-	agencies.HandleFunc("", handlers.Agency.ListAgencies).
-		Methods(http.MethodGet)
+	HandleAdminOrGuide(
+		agencies,
+		"",
+		handlers.Agency.ListAgencies,
+		http.MethodGet,
+		cfg,
+	)
 
-	agencies.HandleFunc("", handlers.Agency.CreateAgency).
-		Methods(http.MethodPost)
+	HandleAdminOrGuide(
+		agencies,
+		"/{id}",
+		handlers.Agency.GetAgencyByID,
+		http.MethodGet,
+		cfg,
+	)
 
-	agencies.HandleFunc("/{id}", handlers.Agency.GetAgencyByID).
-		Methods(http.MethodGet)
+	HandleAdmin(
+		agencies,
+		"",
+		handlers.Agency.CreateAgency,
+		http.MethodPost,
+		cfg,
+	)
 
-	agencies.HandleFunc("/{id}", handlers.Agency.UpdateAgency).
-		Methods(http.MethodPatch)
+	HandleAdmin(
+		agencies,
+		"/{id}",
+		handlers.Agency.UpdateAgency,
+		http.MethodPatch,
+		cfg,
+	)
 
-	agencies.HandleFunc("/{id}", handlers.Agency.DeleteAgency).
-		Methods(http.MethodDelete)
+	HandleAdmin(
+		agencies,
+		"/{id}",
+		handlers.Agency.DeleteAgency,
+		http.MethodDelete,
+		cfg,
+	)
 }

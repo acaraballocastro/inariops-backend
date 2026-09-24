@@ -1,9 +1,11 @@
 package guidesapp
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
+	"inariops/internal/db"
 	"inariops/internal/domain"
 	guidedomain "inariops/internal/modules/guides"
 	"inariops/internal/modules/guides/availabilities"
@@ -19,6 +21,7 @@ import (
 )
 
 type Service struct {
+	db                       *sql.DB
 	usersService             *users.Service
 	usersRepository          *users.Repository
 	guidesRepository         *guidedomain.Repository
@@ -30,6 +33,7 @@ type Service struct {
 }
 
 func NewService(
+	database *sql.DB,
 	usersService *users.Service,
 	usersRepository *users.Repository,
 	guidesRepository *guidedomain.Repository,
@@ -40,6 +44,7 @@ func NewService(
 	availabilitiesRepository *availabilities.Repository,
 ) *Service {
 	return &Service{
+		db:                       database,
 		usersService:             usersService,
 		usersRepository:          usersRepository,
 		guidesRepository:         guidesRepository,
@@ -48,6 +53,20 @@ func NewService(
 		zonesRepository:          zonesRepository,
 		zoneGuidesRepository:     zoneGuidesRepository,
 		availabilitiesRepository: availabilitiesRepository,
+	}
+}
+
+func (s *Service) WithTx(tx *sql.Tx) *Service {
+	return &Service{
+		db:                       s.db,
+		usersService:             s.usersService.WithTx(tx),
+		usersRepository:          s.usersRepository.WithTx(tx),
+		guidesRepository:         s.guidesRepository.WithTx(tx),
+		languagesRepository:      s.languagesRepository.WithTx(tx),
+		languageGuidesRepository: s.languageGuidesRepository.WithTx(tx),
+		zonesRepository:          s.zonesRepository.WithTx(tx),
+		zoneGuidesRepository:     s.zoneGuidesRepository.WithTx(tx),
+		availabilitiesRepository: s.availabilitiesRepository,
 	}
 }
 
@@ -326,7 +345,7 @@ func (s *Service) GetLanguagesByGuideID(guideID string) ([]languages.Language, e
 }
 
 func (s *Service) CreateGuide(guide CreateGuideRequest) (GuidesDetail, error) {
-	// Create the user
+
 	newUser := &domain.User{
 		ID:        uuid.New().String(),
 		Name:      guide.Name,
@@ -337,178 +356,431 @@ func (s *Service) CreateGuide(guide CreateGuideRequest) (GuidesDetail, error) {
 		CreatedAt: time.Now(),
 	}
 
-	err := s.usersRepository.CreateUser(*newUser)
-	if err != nil {
-		logger.Error("CreateGuide: failed to create user name=%s email=%s phone=%s: %v", guide.Name, guide.Email, guide.Phone, err)
-		return GuidesDetail{}, err
-	}
+	var createdGuideDetail GuidesDetail
 
-	// Create the guide
-	newGuide := &domain.Guide{
-		UserID:         newUser.ID,
-		MaxToursPerDay: guide.MaxToursPerDay,
-		CreatedAt:      time.Now(),
-	}
-	if err := s.guidesRepository.CreateGuide(*newGuide); err != nil {
-		logger.Error("CreateGuide: failed to create guide for userID=%s: %v", newUser.ID, err)
-		return GuidesDetail{}, err
-	}
+	err := db.WithTransaction(s.db, func(tx *sql.Tx) error {
 
-	createdGuide, err := s.guidesRepository.GetGuideByUserID(newUser.ID)
-	if err != nil {
-		logger.Error("CreateGuide: failed to get created guide for userID=%s: %v", newUser.ID, err)
-		return GuidesDetail{}, err
-	}
+		txService := s.WithTx(tx)
 
-	// Add languages to the guide
-	for _, lang := range guide.Languages {
-		if err := s.AddLanguageToGuide(createdGuide.ID, lang.Code); err != nil {
-			logger.Error("CreateGuide: failed to add language code=%s to guideID=%s: %v", lang.Code, createdGuide.ID, err)
-			return GuidesDetail{}, err
+		// Create user
+		if err := txService.usersRepository.CreateUser(*newUser); err != nil {
+			logger.Error(
+				"CreateGuide: failed to create user name=%s email=%s phone=%s: %v",
+				guide.Name,
+				guide.Email,
+				guide.Phone,
+				err,
+			)
+			return err
 		}
-	}
 
-	// Add zones to the guide
-	for _, zone := range guide.Zones {
-		if err := s.AddZoneToGuide(createdGuide.ID, zone.ID); err != nil {
-			logger.Error("CreateGuide: failed to add zone id=%s to guideID=%s: %v", zone.ID, createdGuide.ID, err)
-			return GuidesDetail{}, err
+		// Create guide
+		newGuide := &domain.Guide{
+			UserID:         newUser.ID,
+			MaxToursPerDay: guide.MaxToursPerDay,
+			CreatedAt:      time.Now(),
 		}
-	}
 
-	// Fetch the created guide details
-	createdGuideDetail, err := s.GetGuideDetailByID(createdGuide.ID)
+		if err := txService.guidesRepository.CreateGuide(*newGuide); err != nil {
+			logger.Error(
+				"CreateGuide: failed to create guide for userID=%s: %v",
+				newUser.ID,
+				err,
+			)
+			return err
+		}
+
+		createdGuide, err := txService.guidesRepository.GetGuideByUserID(newUser.ID)
+		if err != nil {
+			logger.Error(
+				"CreateGuide: failed to get created guide for userID=%s: %v",
+				newUser.ID,
+				err,
+			)
+			return err
+		}
+
+		// Add languages
+		for _, lang := range guide.Languages {
+			if err := txService.AddLanguageToGuide(
+				createdGuide.ID,
+				lang.Code,
+			); err != nil {
+				logger.Error(
+					"CreateGuide: failed to add language code=%s to guideID=%s: %v",
+					lang.Code,
+					createdGuide.ID,
+					err,
+				)
+				return err
+			}
+		}
+
+		// Add zones
+		for _, zone := range guide.Zones {
+			if err := txService.AddZoneToGuide(
+				createdGuide.ID,
+				zone.ID,
+			); err != nil {
+				logger.Error(
+					"CreateGuide: failed to add zone id=%s to guideID=%s: %v",
+					zone.ID,
+					createdGuide.ID,
+					err,
+				)
+				return err
+			}
+		}
+
+		// IMPORTANT:
+		// Do not use GetGuideDetailByID here because it uses
+		// usersService, which could escape the transaction.
+		languageGuides, err := txService.languageGuidesRepository.GetLanguageGuideByGuideID(
+			createdGuide.ID,
+		)
+		if err != nil {
+			return err
+		}
+
+		languagesList := make([]languages.Language, 0, len(languageGuides))
+
+		for _, lg := range languageGuides {
+			language, err := txService.languagesRepository.GetLanguageByID(
+				lg.LanguageID,
+			)
+			if err != nil {
+				return err
+			}
+
+			if language == nil {
+				return fmt.Errorf("language not found")
+			}
+
+			languagesList = append(languagesList, *language)
+		}
+
+		zoneGuides, err := txService.zoneGuidesRepository.GetZoneGuideByGuideID(
+			createdGuide.ID,
+		)
+		if err != nil {
+			return err
+		}
+
+		zonesList := make([]zones.Zone, 0, len(zoneGuides))
+
+		for _, zg := range zoneGuides {
+			zone, err := txService.zonesRepository.GetZoneByID(
+				zg.ZoneID,
+			)
+			if err != nil {
+				return err
+			}
+
+			if zone == nil {
+				return fmt.Errorf("zone not found")
+			}
+
+			zonesList = append(zonesList, *zone)
+		}
+
+		createdGuideDetail = GuidesDetail{
+			Guide: domain.GuideUser{
+				ID:             createdGuide.ID,
+				UserID:         createdGuide.UserID,
+				Name:           newUser.Name,
+				Email:          newUser.Email,
+				Phone:          newUser.Phone,
+				MaxToursPerDay: createdGuide.MaxToursPerDay,
+				CreatedAt:      createdGuide.CreatedAt,
+			},
+			Languages: languagesList,
+			Zones:     zonesList,
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		logger.Error("CreateGuide: failed to fetch created guide detail guideID=%s: %v", createdGuide.ID, err)
 		return GuidesDetail{}, err
 	}
 
 	return createdGuideDetail, nil
 }
 
-func (s *Service) UpdateGuide(guideID string, guide UpdateGuideRequest) (GuidesDetail, error) {
-	// Fetch the existing guide
-	existingGuide, err := s.guidesRepository.GetGuideByID(guideID)
-	if err != nil {
-		logger.Error("UpdateGuide: failed to get guide id=%s: %v", guideID, err)
-		return GuidesDetail{}, err
-	}
-	if existingGuide.ID == "" {
-		logger.Error("UpdateGuide: guide not found id=%s: %v", guideID, err)
-		return GuidesDetail{}, err
-	}
+func (s *Service) UpdateGuide(
+	guideID string,
+	guide UpdateGuideRequest,
+) (GuidesDetail, error) {
 
-	// Update the guide details
-	existingGuide.MaxToursPerDay = guide.MaxToursPerDay
-	if err := s.guidesRepository.UpdateGuide(existingGuide); err != nil {
-		logger.Error("UpdateGuide: failed to update guide id=%s: %v", guideID, err)
-		return GuidesDetail{}, err
-	}
+	var updatedGuideDetail GuidesDetail
 
-	// Normalize the requested languages to codes so we can diff them against the DB state.
-	requestedLanguageCodes := make(map[string]struct{}, len(guide.Languages))
-	for _, lang := range guide.Languages {
-		languageCode, err := s.resolveLanguageCode(lang)
+	err := db.WithTransaction(s.db, func(tx *sql.Tx) error {
+
+		txService := s.WithTx(tx)
+
+		// ---------------------------------------------------------
+		// 1. Obtener guía existente
+		// ---------------------------------------------------------
+
+		existingGuide, err := txService.guidesRepository.GetGuideByID(guideID)
 		if err != nil {
-			logger.Error("UpdateGuide: failed to resolve requested language for guideID=%s: %v", guideID, err)
-			return GuidesDetail{}, err
+			logger.Error(
+				"UpdateGuide: failed to get guide id=%s: %v",
+				guideID,
+				err,
+			)
+			return err
 		}
-		requestedLanguageCodes[languageCode] = struct{}{}
-	}
 
-	// Remove languages that are no longer present in the update request.
-	existingLanguages, err := s.languageGuidesRepository.GetLanguageGuideByGuideID(guideID)
-	if err != nil {
-		logger.Error("UpdateGuide: failed to load existing languages for guideID=%s: %v", guideID, err)
-		return GuidesDetail{}, err
-	}
+		if existingGuide.ID == "" {
+			err := fmt.Errorf("guide not found")
+			logger.Error(
+				"UpdateGuide: guide not found id=%s: %v",
+				guideID,
+				err,
+			)
+			return err
+		}
 
-	existingLanguageCodes := make(map[string]struct{}, len(existingLanguages))
+		// ---------------------------------------------------------
+		// 2. Actualizar datos de la guía
+		// ---------------------------------------------------------
 
-	for _, existingLanguage := range existingLanguages {
-		language, err := s.languagesRepository.GetLanguageByID(existingLanguage.LanguageID)
+		existingGuide.MaxToursPerDay = guide.MaxToursPerDay
+
+		if err := txService.guidesRepository.UpdateGuide(existingGuide); err != nil {
+			logger.Error(
+				"UpdateGuide: failed to update guide id=%s: %v",
+				guideID,
+				err,
+			)
+			return err
+		}
+
+		// ---------------------------------------------------------
+		// 3. Resolver idiomas solicitados
+		// ---------------------------------------------------------
+
+		requestedLanguageCodes := make(map[string]struct{}, len(guide.Languages))
+
+		for _, lang := range guide.Languages {
+
+			languageCode, err := txService.resolveLanguageCode(lang)
+			if err != nil {
+				logger.Error(
+					"UpdateGuide: failed to resolve requested language for guideID=%s: %v",
+					guideID,
+					err,
+				)
+				return err
+			}
+
+			requestedLanguageCodes[languageCode] = struct{}{}
+		}
+
+		// ---------------------------------------------------------
+		// 4. Obtener idiomas actuales
+		// ---------------------------------------------------------
+
+		existingLanguages, err :=
+			txService.languageGuidesRepository.GetLanguageGuideByGuideID(guideID)
+
 		if err != nil {
-			logger.Error("UpdateGuide: failed to resolve existing language id=%s for guideID=%s: %v", existingLanguage.LanguageID, guideID, err)
-			return GuidesDetail{}, err
-		}
-		if language == nil {
-			logger.Error("UpdateGuide: existing language not found id=%s for guideID=%s: %v", existingLanguage.LanguageID, guideID, err)
-			return GuidesDetail{}, err
-		}
-
-		existingLanguageCodes[language.Code] = struct{}{}
-
-		if _, keep := requestedLanguageCodes[language.Code]; keep {
-			continue
+			logger.Error(
+				"UpdateGuide: failed to load existing languages for guideID=%s: %v",
+				guideID,
+				err,
+			)
+			return err
 		}
 
-		if err := s.RemoveLanguageFromGuide(guideID, language.Code); err != nil {
-			logger.Error("UpdateGuide: failed to remove language code=%s from guideID=%s: %v", language.Code, guideID, err)
-			return GuidesDetail{}, err
-		}
-	}
+		existingLanguageCodes :=
+			make(map[string]struct{}, len(existingLanguages))
 
-	// Add languages that are present in the request but not yet linked.
-	for _, lang := range guide.Languages {
-		languageCode, err := s.resolveLanguageCode(lang)
+		// ---------------------------------------------------------
+		// 5. Eliminar idiomas que ya no están
+		// ---------------------------------------------------------
+
+		for _, existingLanguage := range existingLanguages {
+
+			language, err :=
+				txService.languagesRepository.GetLanguageByID(
+					existingLanguage.LanguageID,
+				)
+
+			if err != nil {
+				logger.Error(
+					"UpdateGuide: failed to resolve existing language id=%s for guideID=%s: %v",
+					existingLanguage.LanguageID,
+					guideID,
+					err,
+				)
+				return err
+			}
+
+			if language == nil {
+				err := fmt.Errorf("language not found")
+				logger.Error(
+					"UpdateGuide: existing language not found id=%s for guideID=%s",
+					existingLanguage.LanguageID,
+					guideID,
+				)
+				return err
+			}
+
+			existingLanguageCodes[language.Code] = struct{}{}
+
+			if _, keep := requestedLanguageCodes[language.Code]; keep {
+				continue
+			}
+
+			if err := txService.RemoveLanguageFromGuide(
+				guideID,
+				language.Code,
+			); err != nil {
+				logger.Error(
+					"UpdateGuide: failed to remove language code=%s from guideID=%s: %v",
+					language.Code,
+					guideID,
+					err,
+				)
+				return err
+			}
+		}
+
+		// ---------------------------------------------------------
+		// 6. Añadir idiomas nuevos
+		// ---------------------------------------------------------
+
+		for _, lang := range guide.Languages {
+
+			languageCode, err :=
+				txService.resolveLanguageCode(lang)
+
+			if err != nil {
+				logger.Error(
+					"UpdateGuide: failed to resolve requested language for guideID=%s: %v",
+					guideID,
+					err,
+				)
+				return err
+			}
+
+			if _, exists := existingLanguageCodes[languageCode]; exists {
+				continue
+			}
+
+			if err := txService.AddLanguageToGuide(
+				guideID,
+				languageCode,
+			); err != nil {
+				logger.Error(
+					"UpdateGuide: failed to add language code=%s to guideID=%s: %v",
+					languageCode,
+					guideID,
+					err,
+				)
+				return err
+			}
+		}
+
+		// ---------------------------------------------------------
+		// 7. Obtener zonas actuales
+		// ---------------------------------------------------------
+
+		existingZones, err :=
+			txService.zoneGuidesRepository.GetZoneGuideByGuideID(guideID)
+
 		if err != nil {
-			logger.Error("UpdateGuide: failed to resolve requested language for guideID=%s: %v", guideID, err)
-			return GuidesDetail{}, err
+			logger.Error(
+				"UpdateGuide: failed to load existing zones for guideID=%s: %v",
+				guideID,
+				err,
+			)
+			return err
 		}
 
-		if _, exists := existingLanguageCodes[languageCode]; exists {
-			continue
+		existingZoneIDs :=
+			make(map[string]struct{}, len(existingZones))
+
+		// ---------------------------------------------------------
+		// 8. Eliminar zonas que ya no están
+		// ---------------------------------------------------------
+
+		for _, existingZone := range existingZones {
+
+			existingZoneIDs[existingZone.ZoneID] = struct{}{}
+
+			found := false
+
+			for _, requestedZone := range guide.Zones {
+				if existingZone.ZoneID == requestedZone.ID {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+
+				if err := txService.zoneGuidesRepository.DeleteZoneGuide(
+					guideID,
+					existingZone.ZoneID,
+				); err != nil {
+					logger.Error(
+						"UpdateGuide: failed to remove zone id=%s from guideID=%s: %v",
+						existingZone.ZoneID,
+						guideID,
+						err,
+					)
+					return err
+				}
+			}
 		}
-		if err := s.AddLanguageToGuide(guideID, languageCode); err != nil {
-			logger.Error("UpdateGuide: failed to add language code=%s to guideID=%s: %v", languageCode, guideID, err)
-			return GuidesDetail{}, err
-		}
-	}
 
-	// Remove zones that are no longer present in the update request.
-	existingZones, err := s.zoneGuidesRepository.GetZoneGuideByGuideID(guideID)
-	if err != nil {
-		logger.Error("UpdateGuide: failed to load existing zones for guideID=%s: %v", guideID, err)
-		return GuidesDetail{}, err
-	}
+		// ---------------------------------------------------------
+		// 9. Añadir zonas nuevas
+		// ---------------------------------------------------------
 
-	existingZoneIDs := make(map[string]struct{}, len(existingZones))
-
-	for _, existingZone := range existingZones {
-		existingZoneIDs[existingZone.ZoneID] = struct{}{}
-
-		// Check if the existing zone is in the requested zones
-		found := false
 		for _, requestedZone := range guide.Zones {
-			if existingZone.ZoneID == requestedZone.ID {
-				found = true
-				break
+
+			if _, exists := existingZoneIDs[requestedZone.ID]; exists {
+				continue
+			}
+
+			if err := txService.AddZoneToGuide(
+				guideID,
+				requestedZone.ID,
+			); err != nil {
+				logger.Error(
+					"UpdateGuide: failed to add zone id=%s to guideID=%s: %v",
+					requestedZone.ID,
+					guideID,
+					err,
+				)
+				return err
 			}
 		}
 
-		if !found {
-			if err := s.zoneGuidesRepository.DeleteZoneGuide(guideID, existingZone.ZoneID); err != nil {
-				logger.Error("UpdateGuide: failed to remove zone id=%s from guideID=%s: %v", existingZone.ZoneID, guideID, err)
-				return GuidesDetail{}, err
-			}
-		}
-	}
+		// ---------------------------------------------------------
+		// 10. Obtener el detalle actualizado
+		// ---------------------------------------------------------
 
-	// Add zones that are present in the request but not yet linked.
-	for _, requestedZone := range guide.Zones {
-		if _, exists := existingZoneIDs[requestedZone.ID]; exists {
-			continue
-		}
-		if err := s.AddZoneToGuide(guideID, requestedZone.ID); err != nil {
-			logger.Error("UpdateGuide: failed to add zone id=%s to guideID=%s: %v", requestedZone.ID, guideID, err)
-			return GuidesDetail{}, err
-		}
-	}
+		updatedGuideDetail, err =
+			txService.GetGuideDetailByID(guideID)
 
-	// Fetch the updated guide details
-	updatedGuideDetail, err := s.GetGuideDetailByID(guideID)
+		if err != nil {
+			logger.Error(
+				"UpdateGuide: failed to fetch updated guide detail guideID=%s: %v",
+				guideID,
+				err,
+			)
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		logger.Error("UpdateGuide: failed to fetch updated guide detail guideID=%s: %v", guideID, err)
 		return GuidesDetail{}, err
 	}
 
@@ -701,4 +973,13 @@ func validateAvailabilityDates(start, end *time.Time) (*time.Time, *time.Time, e
 		return nil, nil, appErrors.ErrInvalidAvailabilityDate
 	}
 	return start, end, nil
+}
+
+func (s *Service) IsOwnGuide(userID, guideID string) (bool, error) {
+	guide, err := s.guidesRepository.GetGuideByID(guideID)
+	if err != nil {
+		return false, err
+	}
+
+	return guide.UserID == userID, nil
 }
