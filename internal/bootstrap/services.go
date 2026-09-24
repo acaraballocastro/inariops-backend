@@ -138,6 +138,7 @@ func newServices(
 		),
 
 		GuideApplication: guidesapp.NewService(
+			database,
 			userService,
 			repositories.User,
 			repositories.Guide,
